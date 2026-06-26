@@ -506,15 +506,789 @@ mux.HandleFunc("/baz", bazHandler)
 
 ​	但是不要让那些让你失望。事实上，Go 的 servemux 仍然可以让你走得更远，并且对于许多应用程序来说已经足够了。在您需要更多的时候，可以使用大量的第三方路由器来代替 Go 的 servemux。我们将在本书后面介绍一些流行的选项。
 
-#### 2.5. 自定义 HTTP 标头
+
+
+#### 2.5. 自定义 HTTP 请求头
+
+---
+
+现在让我们更新我们的应用程序，使 /snippet/create路由仅响应使用 POST方法的 HTTP 请求，如下所示：
+
+| Method | Pattern         | Handler       | Action                     |
+| ------ | --------------- | ------------- | -------------------------- |
+| ANY    | /               | home          | Display the home page      |
+| ANY    | /snippet        | showSnippet   | Display a specific snippet |
+| POST   | /snippet/create | createSnippet | Create a new snippet       |
+
+​	进行这种更改非常重要，因为在应用程序构建的后期，对/snippet/create路由的请求将导致在数据库中创建一个新的片段。在数据库中创建新片段是一项非幂等性操作，它会改变我们服务器的状态，因此我们应该遵循HTTP的良好实践，并将此路由限制为仅以POST请求执行。
+
+​	不过，我现在要专门讲这个，主要是因为它是引出 HTTP 响应头话题的好契机，顺便也能说明如何定制这些响应头。
+
+##### HTTP 状态代码
+
+​	首先更新 `snippetCreate` 处理函数，使其在请求方法非 POST 时返回 **405（Method Not Allowed）** 状态码。为此需使用 `w.WriteHeader()` 方法，示例如下：
+
+```
+File: main.go
+```
+
+```go
+func createSnippet(w http.ResponseWriter, r *http.Request) {
+	// 使用 r.Method 检查请求是否使用 POST 方法。注意，
+	// http.MethodPost 是一个常量，其值为字符串 "POST"。
+	if r.Method != http.MethodPost {
+		// 若不是 POST，则调用 w.WriteHeader() 发送 405 状态码，
+		// 并调用 w.Write() 写入 "Method Not Allowed" 作为响应体。
+		// 随后从函数返回，使后续代码不会被执行。
+		w.WriteHeader(405)
+		w.Write([]byte("Method not allowed"))
+		return
+	}
+
+	w.Write([]byte("Create a new snippet..."))
+}
+```
+
+​	尽管此更改看起来很简单，但我应该解释一些细微差别：
+
+​	每次响应只能调用 w.WriteHeader() 一次，状态码写入后便无法更改。如果您尝试第二次调用 w.WriteHeader()，Go 将记录一条警告消息。
+
+​	如果您没有显式调用 w.WriteHeader()，那么第一次调用 w.Write()会自动向用户发送 200 OK状态码。因此，如果您想发送非 200 状态代码，则必须在调用 w.Write() 之前调用 w.WriteHeader()。
+
+让我们看一下实际效果。
+
+​	重新启动服务器，然后打开第二个终端窗口并使用 curl 向 http://localhost:4000/snippet/create发出 POST请求。您应该会收到一个带有 200 OK状态代码的 HTTP 响应，类似于：
+
+```bash
+$ curl -i -X POST http://localhost:4000/snippet/create
+HTTP/1.1 200 OK
+Date: Fri, 26 Jun 2026 10:02:38 GMT
+Content-Length: 23
+Content-Type: text/plain; charset=utf-8
+
+Create a new snippet...
+```
+
+​	但是，如果您使用不同的请求方法——例如 GET、PUT或 DELETE——您现在应该会收到带有 405 Method Not Allowed状态代码的响应。例如：
+
+```bash
+$ curl -i -X PUT http://localhost:4000/snippet/create
+HTTP/1.1 405 Method Not Allowed
+Date: Fri, 26 Jun 2026 10:04:32 GMT
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+
+Method not allowed
+```
+
+##### 自定义标题
+
+​	我们可以做的另一项改进是在 405 Method Not Allowed 响应中包含一个 Allow 标头，让用户知道该特定 URL 支持哪些请求方法。
+​	我们可以通过使用 w.Header().Set() 方法将新标头添加到响应头映射来完成此操作，如下所示：
+
+```bash
+File: mian.go
+```
+
+```go
+func createSnippet(w http.ResponseWriter, r *http.Request) {
+	// 使用 r.Method 检查请求是否使用 POST 方法。注意，
+	// http.MethodPost 是一个常量，其值为字符串 "POST"。
+	if r.Method != http.MethodPost {
+		// 若不是 POST，则调用 w.WriteHeader() 发送 405 状态码，
+		// 并调用 w.Write() 写入 "Method Not Allowed" 作为响应体。
+		// 随后从函数返回，使后续代码不会被执行。
+		w.Header().Set("Allow", http.MethodPost)
+		w.WriteHeader(405)
+		w.Write([]byte("Method not allowed"))
+		return
+	}
+
+	w.Write([]byte("Create a new snippet..."))
+}
+```
+
+> [!IMPORTANT]
+>
+> 对响应标头映射的更改，若发生在 `w.WriteHeader()` 或 `w.Write()` 调用之后，则对用户实际接收到的标头无效。因此，必须在调用这些方法之前，确保标头映射已包含全部所需标头。
+
+再次向 `/snippet/create` 发送非 POST 请求以观察实际效果，示例如下：
+
+```bash
+$ curl -i -X PUT http://localhost:4000/snippet/create
+HTTP/1.1 405 Method Not Allowed
+Allow: POST
+Date: Fri, 26 Jun 2026 10:11:51 GMT
+Content-Length: 18
+Content-Type: text/plain; charset=utf-8
+
+Method not allowed
+```
+
+注意响应现在包含了新的 `Allow: POST` 标头
+
+##### http.Error 快捷方式
+
+​	如果你想发送一个非200状态码和纯文本响应体（就像我们在上面的代码中所做的那样），那么这是使用http.Error() 快捷方式的好机会。这是一个轻量级的辅助函数，它接受给定的消息和状态码，然后在幕后为我们调用 w.WriteHeader() 和 w.Write() 方法。
+
+让我们更新代码以使用它。
+
+```
+File: main.go
+```
+
+```go
+func createSnippet(w http.ResponseWriter, r *http.Request) {
+	// 使用 r.Method 检查请求是否使用 POST 方法。注意，
+	// http.MethodPost 是一个常量，其值为字符串 "POST"。
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		// 使用 http.Error() 函数发送 405 状态码
+		// 并以 "Method Not Allowed" 字符串作为响应体
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+
+	w.Write([]byte("Create a new snippet..."))
+}
+```
+
+​	在功能方面，这几乎是完全相同的。最大的区别是我们现在将我们的http.ResponseWriter 传递给另一个函数，它为我们向用户发送响应。
+
+​	将 http.ResponseWriter 传递给其他函数的模式在 Go 语言中非常常见，而且在本书中我们将经常使用它。在实践中，直接使用 w.Write() 和 w.WriteHeader() 方法像我们迄今所做的那样是相当罕见的。但我想提前介绍它们，因为它们是发送响应的更高级和有趣,方法的基础。
+
+##### net/http 常量
+
+​	我们可以做的最后一项调整是使用 net/http 包中的常量作为 HTTP 方法和状态代码，而不是我们自己编写字符串和整数。
+
+​	具体来说，我们可以使用常量 http.MethodPost代替字符串 "POST"，使用常量 http.StatusMethodNotAllowed 代替整数 405。像这样：
+
+```
+File: main.go
+```
+
+```go
+func createSnippet(w http.ResponseWriter, r *http.Request) {
+	// 使用 r.Method 检查请求是否使用 POST 方法。注意，
+	// http.MethodPost 是一个常量，其值为字符串 "POST"。
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		// 使用 http.Error() 函数发送 405 状态码
+		// 并以 "Method Not Allowed" 字符串作为响应体
+        // http.StatusMethodNotAllowed = 405
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed) 
+		return
+	}
+
+	w.Write([]byte("Create a new snippet..."))
+}
+```
+
+​	使用这些常量是一种很好的做法，因为它有助于防止因拼写错误而导致的运行时错误，并且在 HTTP 状态代码常量的情况下，它还可以帮助使您的代码更清晰和自我记录——尤其是在处理不常用的状态时代码。
+
+##### 附加信息
+
+**系统生成的标头和内容嗅探**
+
+​	发送响应时，Go 会自动为您设置三个系统生成的标头：Date 和 Content-Length 以及 Content-Type。
+
+​	`Content-Type` 标头尤其值得关注。Go 会尝试通过 `http.DetectContentType()` 函数对响应体进行内容嗅探，自动设置正确的值。若该函数无法推断出内容类型，Go 会将 `Content-Type` 标头回退设置为 `application/octet-stream`。
+
+​	`http.DetectContentType()` 函数通常运行良好，但对于刚接触 Go 的 Web 开发者来说，一个常见的陷阱是它无法区分 JSON 与纯文本。因此，JSON 响应默认会带有 `Content-Type: text/plain; charset=utf-8` 标头发送。你可以通过手动设置正确的标头来避免此问题，如下所示：
+
+```go
+w.Heander().Set("Content-Type", "application/json")
+w.Write([]byte(`{"name": "Alex"}`))
+```
+
+##### 操作标头映射
+
+​	上述代码中使用 `w.Header().Set()` 向响应标头映射添加了新标头。此外，还可以使用 `Add()`、`Del()`、`Get()` 和 `Values()` 方法来读取和操作标头映射。
+
+```go
+// 设置一个新的 Cache-Control 标头。如果已存在 "Cache-Control" 标头，它将被覆盖。
+w.Header().Set("Cache-Control", "public, max-age=31536000")
+
+// 相比之下，Add() 方法会追加一个新的 "Cache-Control" 标头，并且可以被多次调用。
+w.Header().Add("Cache-Control", "public")
+w.Header().Add("Cache-Control", "max-age=31536000")
+
+// 删除 "Cache-Control" 标头的所有值。
+w.Header().Del("Cache-Control")
+
+// 获取 "Cache-Control" 标头的第一个值。
+w.Header().Get("Cache-Control")
+```
+
+**标头规范化**
+
+​	对标头映射使用 `Set()`、`Add()`、`Del()`、`Get()` 和 `Values()` 方法时，标头名称始终会通过 `textproto.CanonicalMIMEHeaderKey()` 函数进行规范化。该函数将首字母及连字符后的字母转为大写，其余字母转为小写。实际影响是，调用这些方法时标头名称不区分大小写。
+
+​	如需避免此规范化行为，可直接编辑底层的标头映射（其类型为 `map[string][]string`）。例如：
+
+```go
+w.Header()["X-XSS-Protection"] = []string{"1; mode=block"}
+```
+
+> [!note]
+>
+> 若使用 HTTP/2 连接，Go 会始终根据 HTTP/2 规范自动将标头名称和值转换为小写。
+
+**抑制系统生成的标头**
+
+​	`Del()` 方法不会移除系统生成的标头。若要移除这些标头，需直接访问底层标头映射并将其值设为 `nil`。例如，若要移除 `Date` 标头，需写入：
+
+```go
+w.Header()["Date"] = nil
+```
+
+
 
 #### 2.6. 网址查询字符串
 
+---
+
+##### 网址查询字符串
+
+​	趁现在讲到路由，我们来更新 `snippetView` 处理函数，使其接受用户传入的 `id` 查询字符串参数，如下所示：
+
+| Method | Pattern         | Handler       | Action                     |
+| ------ | --------------- | ------------- | -------------------------- |
+| ANY    | /               | jhome         | Display the home page      |
+| ANY    | /snippet?id=1   | showSnippet   | Dispaly a specific snippet |
+| POST   | /snippet/create | createSnippet | Create a new snippet       |
+
+​	稍后我们会用这个 `id` 参数从数据库中查询对应的 snippet 并展示给用户。但目前，我们只读取 `id` 参数的值，并将其拼接到占位响应中。
+
+为实现该功能，需要更新 `showSnippet` 处理函数，完成两件事：
+
+1. 从 URL 查询字符串中获取 `id` 参数的值，可使用 `r.URL.Query().Get()` 方法。该方法始终返回参数的字符串值，若不存在匹配参数则返回空字符串 `""`。
+2. 由于 `id` 参数来自不可信的用户输入，需对其进行验证，确保合理有效。就本 Snippetbox 应用而言，需检查其是否为正整数值。可通过 `strconv.Atoi()` 函数将字符串值转换为整数，然后检查该值是否大于零。
+
+就是这样：
+
+```
+File: main.go
+```
+
+```go
+func showSnippet(w http.ResponseWriter, r *http.Request) {
+	// 从查询字符串中提取 id 参数的值，并尝试使用 strconv.Atoi() 函数将其转换为整数。
+	// 如果无法转换为整数，或值小于 1，则返回 404 页面未找到响应。
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	// 使用 fmt.Fprintf() 函数将 id 值拼接到响应中，并写入 http.ResponseWriter。
+	fmt.Fprintf(w, "Display a specific with ID %d...", id)
+}
+```
+
+我们来试一下。
+
+重启应用，然后访问类似 `http://localhost:4000/snippet?id=123` 的 URL。你应该会看到如下响应：
+
+![image-20260626184934338](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260626184934338.png)
+
+您可能还想尝试访问一些包含 id参数无效值或根本没有参数的 URL。例如：
+
+- http://localhost:4000/snippet
+- http://localhost:4000/snippet?id=-1
+- http://localhost:4000/snippet?id=foo
+
+对于所有这些请求，您应该得到 404 page not found响应。
+
+##### io.writer 接口
+
+​	上述代码在底层还引入了一个新知识点。查看 `fmt.Fprintf()` 函数的文档会发现，它的第一个参数是 `io.Writer` 类型……
+
+```go
+func Fprintf(w io.Writer, format string, a ...any) (n int, err error)
+```
+
+​	但我们传入的是 `http.ResponseWriter` 对象，并且运行正常。
+
+​	之所以如此，是因为 `io.Writer` 是一个接口类型，而 `http.ResponseWriter` 对象实现了该接口（因为它有 `Write()` 方法）。如果你是 Go 新手，接口的概念可能会有些令人困惑，现在我不想深入展开。你只需知道，在实践中，凡是看到 `io.Writer` 类型参数的地方，都可以传入 `http.ResponseWriter` 对象。写入的内容随后会作为 HTTP 响应体发送出去。
+
+
+
 #### 2.7. 项目结构和组织
+
+---
+
+​	在继续向 `main.go` 添加更多代码之前，现在是时候考虑如何组织和构建这个项目了。
+
+​	需要事先说明的是，Go 中并没有唯一正确——甚至推荐——的 Web 应用结构方式。这既是好事也是坏事。一方面，你可以自由灵活地组织代码；另一方面，在决定最佳结构时又很容易陷入不确定的困境。
+
+​	随着 Go 使用经验的积累，你会逐渐形成一套在不同场景下行之有效的模式。但作为起点，我能给的最好建议就是：不要过度复杂化。尽量只在确实需要时才引入结构和复杂性。
+
+​	对于本项目，我们将采用一种流行且久经考验的结构方案。这是一个坚实的起点，其通用结构可以复用到多种项目中。
+
+请确保当前位于项目仓库根目录下，然后执行以下命令：
+
+```bash
+// windows
+$ cd /code/snippetbox
+$ rm main.go
+$ mkdir -p cmd/web,pkg,ui/html,ui/static
+$ type nul > cmd/web/main.go
+$ type nul > cmd/web/handlers.go
+
+// Linux/Unix
+$ cd $HOME/code/snippetbox
+$ rm main.go
+$ mkdir -p cmd/web pkg ui/html ui/static
+$ touch cmd/web/main.go
+$ touch cmd/web/handlers.go
+```
+
+您的项目存储库的结构现在应该如下所示：
+
+![image-20260626190656393](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260626190656393.png)
+
+
+
+/docs 目录是我自己的文档目录当**不存在**。
+
+我们花点时间来讨论一下每个目录的用途。
+
+​	`cmd` 目录将存放项目中可执行程序的应用特定代码。目前我们只有一个可执行程序——Web 应用——它将位于 `cmd/web` 目录下。
+
+​	`pkg` 目录将存放项目中非应用特定的辅助代码。我们将用它来存放可能可重用的代码，例如验证辅助函数和项目的 SQL 数据库模型。
+
+​	`ui` 目录将存放 Web 应用所使用的用户界面资源。具体来说，`ui/html` 目录存放 HTML 模板，`ui/static` 目录存放静态文件（如 CSS 和图片）。
+
+那么为什么要采用这种结构呢？主要有两大好处：
+
+1. 它清晰地分离了 Go 代码和非 Go 资源。我们编写的所有 Go 代码将专属于 `cmd` 和 `pkg` 目录之下，项目根目录则留作存放非 Go 资源，如 UI 文件、Makefile 和模块定义（包括 `go.mod` 文件）。这在将来构建和部署应用时有助于简化管理。
+2. 如果将来想在项目中添加另一个可执行程序，这种结构扩展性很好。例如，将来你可能想添加一个 CLI（命令行界面）来自动化一些管理任务。在这种结构下，你可以将 CLI 应用放在 `cmd/cli` 下，并且它能够导入和复用你在 `pkg` 目录下编写的所有代码。
+
+##### 重构现有代码
+
+我们快速将已编写的代码迁移到新结构中。
+
+```go
+File: main.go
+```
+
+```go
+package main
+
+import (
+	"log"
+	"net/http"
+)
+
+func main() {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", home)
+	mux.HandleFunc("/snippet", showSnippet)
+	mux.HandleFunc("/snippet/create", createSnippet)
+		
+	log.Println("Starting server on :4000")
+	err := http.ListenAndServe(":4000", mux)
+	log.Fatal(err)
+}
+```
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+)
+
+func home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	w.Write([]byte("Hello from Snippetbox"))
+}
+
+func showSnippet(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+}
+
+func createSnippet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Write([]byte("Create a new snippet..."))
+}
+```
+
+现在我们的 Web 应用由 `cmd/web` 目录下的多个 Go 源文件组成。要运行它们，可以使用 `go run` 命令，如下所示：
+
+```bash
+$ go run ./cmd/web        
+2026/06/26 19:20:46 Starting server on :4000
+```
+
+##### 附加信息
+
+**内部目录**
+
+​	需要指出的是，目录名称 internal 在 Go 中具有特殊的意义和行为：存放在这个目录下的任何包只能被父级 internal 目录的内部代码导入。在我们的情况下，这意味着任何存放在 internal 中的包都只能被我们的 snippetbox 项目目录中的代码导入。
+
+​	或者换句话说，这意味着任何 internal 目录下的包都不能被我们项目之外的代码导入。
+
+​	这很有用，因为它可以防止其他代码库导入和依赖于我们的internal目录中的（可能是未经版本化和不受支持的）包 - 即使项目代码在GitHub等公共位置上可用。
+
+
 
 #### 2.8. HTML 模板和继承
 
+---
+
+​	让我们为项目注入一点活力，并为我们的 Snippetbox Web 应用程序开发一个合适的主页。在接下来的几章中，我们将努力创建一个如下所示的页面：
+
+![image-20260626192401294](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260626192401294.png)
+
+​	让我们首先在 ui/html/pages/home.tmpl创建一个模板文件，其中包含我们主页的 HTML 内容。像这样：
+
+```bash
+$ cd ui\html\
+$ type nul > home.page.tmpl
+```
+
+```
+File: ui/html/home.page.tmpl
+```
+
+```html
+<!doctype html>
+<html lang='en'>
+    <head>
+        <meta charset='utf-9'>
+        <title>Home - Snippetbox</title>
+    </head>
+    <body>
+        <header>
+            <h1><a href='/'>Snippetbox</a> </h1>
+        </header>
+        <nav>
+            <a href="/">Home</a>
+        </nav>
+        <main>
+            <h2>Latest Snippets</h2>
+            <p>There's nothing to see here yet!</p>
+        </main>
+    </body>
+</html>
+```
+
+> [!NOTE]
+>
+> 本书中，我们将使用 `<name>.<role>.tmpl` 的命名约定来命名模板文件，其中 `<role>` 为 `page`、`partial` 或 `layout`。通过文件名即可确定模板的角色，这有助于在本书后续内容中创建模板缓存。
+>
+> .tmpl 扩展在这里没有传达任何特殊含义或行为。我之所以选择这个扩展名，是因为它是一种很好的方式，可以在您浏览文件列表时清楚地表明该文件包含一个 Go 模板。但是，如果你愿意，你可以使用扩展名 .html来代替（这可能会让你的文本编辑器将文件识别为 HTML，以便语法高亮或自动完成）——或者你甚至可以使用“双重扩展名”，比如 .tmpl.html。选择权在你，但我们将在整本书中坚持使用 .tmpl 作为我们的模板。
+
+​	现在已经创建了包含首页 HTML 标记的模板文件，下一个问题是如何让 `home` 处理函数渲染它。
+
+​	为此，我们需要导入 Go 的 `html/template` 包，该包提供了一系列用于安全解析和渲染 HTML 模板的函数。我们可以使用该包中的函数来解析模板文件，然后执行模板。
+
+我来演示一下。打开 `cmd/web/handlers.go` 文件，添加以下代码：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+func home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
+	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
+	// 500 Internal Server Error 响应
+	ts, err := template.ParseFiles("./ui/html/home.page.tmpl")
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+		return
+	}
+
+	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
+	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
+	err = ts.Execute(w, nil)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+	}
+}
+```
+
+​	需要指出的是，传给 `template.ParseFiles()` 函数的文件路径必须是相对于当前工作目录的路径，或绝对路径。上述代码中，我使用的是相对于项目根目录的路径。
+
+因此，请确保当前位于项目根目录下，然后重启应用：
+
+```bash
+$ go run ./cmd/web
+2026/06/26 19:53:37 Starting server on :4000
+```
+
+然后在浏览器中打开 `http://localhost:4000`，你应该会看到首页的 HTML 页面已经基本成形。
+
+![image-20260626195602954](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260626195602954.png)
+
+##### 模板组成
+
+​	随着我们为 Web 应用添加更多页面，会有一些共享的样板 HTML 标记需要包含在每个页面中——例如 `<head>` HTML 元素中的页头、导航和元数据。
+
+​	为了避免重复输入，最好创建一个包含这些共享内容的布局（或主）模板，然后将其与各个页面的专属标记组合使用。
+
+​	现在创建 `ui/html/base.layout.tmpl` 文件：
+
+```bash
+$ type nul > ui/html/base.layout.tmpl
+```
+
+并添加以下标记（我们希望出现在每个页面上）：
+
+```
+File: ui/html/base.layout.tmpl
+```
+
+```html
+{{define "base"}}
+<!doctype html>
+<html lang='en'>
+    <head>
+        <meta charset='utf-8'>
+        <title>{{template "title" .}} - Snippetbox</title>
+    </head>
+    <body>
+        <header>
+            <h1><a href='/'>Snippetbox</a> </h1>
+        </header>
+        <nav>
+            <a href='/'>Home</a>
+        </nav>
+        <main>
+            {{template "main" .}}
+        </main>
+    </body>
+</html>
+{{end}}
+```
+
+​	如果你之前用过其他语言的模板，应该会觉得这很熟悉。本质上它只是常规的 HTML，加上一些用双花括号包裹的额外动作。
+
+​	这里我们使用 `{{define "base"}}...{{end}}` 动作定义了一个名为 `base` 的命名模板，其中包含我们希望在每个页面中显示的内容。
+
+​	在其中，我们使用 `{{template "title" .}}` 和 `{{template "main" .}}` 动作来表示我们希望在 HTML 的特定位置调用其他命名模板（分别名为 `title` 和 `main`）。
+
+> [!NOTE]
+>
+> 如果你有疑问，`{{template "title" .}}` 动作末尾的点表示要传递给被调用模板的任何动态数据。我们稍后会讨论。
+
+现在回到 `ui/html/home.page.tmpl`，将其更新为定义 `title` 和 `main` 命名模板，包含首页的特定内容：
+
+```
+File: ui/html/home.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Home{{end}}
+
+{{define "main"}}
+<h2>Latest Snippet</h2>
+<p>There's nothing to see here yet!</p>
+{{end}}
+```
+
+​	该文件顶部可以说是最重要的部分——`{{template "base" .}}` 动作。它告诉 Go，在执行 `home.page.tmpl` 文件时，我们要调用名为 `base` 的模板。
+
+​	而 `base` 模板又包含调用 `title` 和 `main` 命名模板的指令。我知道一开始这可能感觉有点循环，但请耐心——在实践中，这种模式效果非常好。
+
+​	完成后，下一步是更新 `home` 处理函数中的代码，使其同时解析两个模板文件，如下所示：
+
+```go
+func home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// 初始化一个包含两个文件路径的切片
+	// 注意，home.page.tmpl 文件必须是切片中的 *第一个* 文件。
+	files := []string{
+		"./ui/html/home.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+	}
+	
+	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
+	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
+	// 500 Internal Server Error 响应
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+		return
+	}
+
+	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
+	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
+	err = ts.Execute(w, nil)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+	}
+}
+```
+
+​	现在，模板集不再直接包含 HTML，而是包含三个命名模板（`base`、`title` 和 `main`），以及一个调用 `base` 模板的指令（`base` 模板又会调用 `title` 和 `main` 模板）。
+
+​	请随意重启服务器并尝试一下。你应该会看到输出与之前相同（只是 HTML 源码中动作所在位置会多出一些空白）。
+
+​	使用这种模式组合模板的一大好处是，你可以将页面专属内容清晰地在磁盘上按单独文件定义，并在这些文件中控制页面使用哪种布局模板。这对于大型应用尤其有用，因为应用中的不同页面可能需要使用不同的布局。
+
+##### 嵌入部份
+
+​	对于某些应用，你可能希望将部分 HTML 片段提取为局部模板，以便在不同的页面或布局中复用。为了演示，我们为 Web 应用创建一个包含页脚内容的局部模板。
+
+​	新建 `ui/html/footer.partial.tmpl` 文件，并添加一个名为 `footer` 的命名模板，如下所示：
+
+```bash
+$ type nul > ui/html/footer.partial.tmpl
+```
+
+```
+File: ui/html/footer.partial.tmpl
+```
+
+```html
+{{define "footer"}}
+<footer>Powered by <a href="https://baidu.com/">Go</a> </footer>
+{{end}}
+```
+
+​	然后更新 `base` 模板，使用 `{{template "footer" .}}` 动作调用 `footer`：
+
+​	最后，需要更新 `home` 处理函数，在解析模板文件时加入新的 `ui/html/footer.partial.tmpl` 文件：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+func home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// 初始化一个包含两个文件路径的切片
+	// 注意，home.page.tmpl 文件必须是切片中的 *第一个* 文件。
+	files := []string{
+		"./ui/html/home.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.page.tmpl",
+	}
+
+	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
+	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
+	// 500 Internal Server Error 响应
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+		return
+	}
+
+	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
+	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
+	err = ts.Execute(w, nil)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+	}
+}
+```
+
+​	重启服务器后，`base` 模板现在会调用 `footer` 模板，首页应该如下所示：
+
+![image-20260626203458260](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260626203458260.png)
+
+##### 附加信息
+
+**块动作**
+
+​	上面的代码中，我们使用 `{{template}}` 动作从一个模板调用另一个模板。但 Go 还提供了 `{{block}}...{{end}}` 动作，同样可以用于此目的。
+
+​	它的行为类似于 `{{template}}` 动作，区别在于，如果被调用的模板在当前模板集中不存在，它会允许你指定一些默认内容。
+
+​	在 Web 应用的上下文中，当你希望提供一些默认内容（如侧边栏），而各个页面在需要时可以在个案基础上覆盖它们时，这会很有用。
+
+语法上使用方式如下：
+
+```bash
+{{define "base"}}
+	<h1>An example template</h1>
+	{{block "sidebar" .}}
+		<p>My default sidebar content</p>
+	{{end}}
+{{end}}
+```
+
+​	但是——如果你愿意的话——你不需要在 {{block}} 和 {{end}} 操作之间包含任何默认内容。在这种情况下，调用的模板就像它是“可选的”一样。如果该模板存在于模板集中，那么它将被渲染。但如果没有，则不会显示任何内容。
+
+
+
 #### 2.9. 提供静态文件
+
+---
+
+​	现在我们来改善首页的外观，为项目添加一些静态 CSS 和图片文件，再加上一小段 JavaScript 来高亮当前导航项。
+
+​	如果你在跟着操作，可以用以下命令获取所需文件并解压到之前创建的 `ui/static` 文件夹中：
+
+```bash
+$ cd $HOME/code/snippetbox
+$ curl https://www.alexedwards.net/static/sb.v130.tar.gz | tar -xvz -C ./ui/static/
+```
+
+​	也可以直接输入 https://www.alexedwards.net/static/sb.v130.tar.gz 进行下载在解压,再移动到对应文件夹下.
+
+​	ui/static目录的内容现在应该如下所示：
+
+![image-20260626213935660](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260626213935660.png)
+
+##### http.Fileserver 处理程序
+
+
+
+
+
+
+
+
+
+
 
 #### 2.10. http.Handler 接口
 
