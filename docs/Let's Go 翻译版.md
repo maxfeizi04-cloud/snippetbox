@@ -22,8 +22,6 @@
 
 ### 1. 简介
 
-#### 介绍 
-
 ---
 
 ​	在本书中，我们将构建一个名为 Snippetbox 的 Web 应用程序，它可以让人们粘贴和共享文本片段——有点像 Pastebin 或 GitHub 的 Gists。在构建结束时，它看起来有点像这样：
@@ -101,17 +99,13 @@ Hello world!
 
 ---
 
-#### 背景知识
+**背景知识**
 
 ​	这本书是为刚接触 Go 的人设计的，但如果你先对 Go 的语法有一个大致的了解，你可能会发现它更有趣。如果你发现自己在语法上苦苦挣扎，Karl Seguin 的 Little Book of Go 是一个很棒的教程，或者如果你想要更具交互性的东西，我建议你完成 Go 之旅。
 
 ​	我还假设您对 HTML/CSS 和 SQL 有（非常）基本的了解，并且对使用终端（或 Windows 用户的命令行）有一定的了解。如果您以前用任何其他语言构建过 Web 应用程序——无论是 Ruby、Python、PHP 还是 C#——那么这本书应该非常适合您。
 
-
-
-#### 其他软件
-
----
+**其他软件**
 
 ​	如果您想完全按照说明进行操作，则应确保您的计算机上还有其他一些软件可用。他们是：
 
@@ -119,7 +113,13 @@ Hello world!
 
 ​	具有良好开发工具的 Web 浏览器。我将在本书中使用 Firefox，但 Chromium、Chrome 或 Microsoft Edge 也可以。
 
+
+
 ### 2. 基础
+
+---
+
+
 
 ​	好了，让我们开始吧！在本书的第一部分中，我们将为我们的项目奠定基础，并解释您在构建应用程序的其余部分时需要了解的主要原则。
 
@@ -133,6 +133,8 @@ Hello world!
 6. 以合理且可扩展的方式构建您的项目。
 7. 呈现 HTML 页面并使用模板继承使您的标记没有重复的样板代码。
 8. 从您的应用程序提供静态文件，如图像、CSS 和 JavaScript。
+
+
 
 #### 2.1 安装 Go
 
@@ -156,7 +158,13 @@ go version go1.19 linux/amd64
 - 在 Windows 上安装 Go
 - 在 Linux 上安装 Go
 
+
+
 #### 2.2. 项目设置和创建模块 
+
+---
+
+
 
 ​	在我们编写任何代码之前，您需要在您的计算机上创建一个 snippetbox 目录作为该项目的顶级“家”。我们在整本书中编写的所有 Go 代码以及其他项目特定的资产（如 HTML 模板和 CSS 文件）都将保存在这里。
 
@@ -1280,35 +1288,1670 @@ $ curl https://www.alexedwards.net/static/sb.v130.tar.gz | tar -xvz -C ./ui/stat
 
 ##### http.Fileserver 处理程序
 
+​	Go 标准库中的 **`net/http` 包**内置了一个用于提供静态文件服务的处理器（Handler）——**`http.FileServer`**。
 
+​	借助 `http.FileServer`，我们可以将某个指定目录中的文件通过 **HTTP 协议** 对外提供访问，而无需自己编写读取文件、设置响应头以及返回文件内容等逻辑。
 
+​	下面，我们将在应用程序中新增一条路由，使**所有以 `"/static/"` 开头的请求**都交由 `http.FileServer` 进行处理，如下所示：
 
+| Method | Pattern         | Handler         | Action                       |
+| ------ | --------------- | --------------- | ---------------------------- |
+| ANY    | /               | home            | Display the home page        |
+| ANY    | /snippet?id=1   | showSnippet     | Display a specific snippet   |
+| POST   | /snippet/create | createSnippet   | Create a new snippet         |
+| ANY    | /static/        | http.FileServer | Serve a specific static file |
 
+> [!NOTE]	
+>
+> 请注意，路由模式 **`"/static/"`** 属于一种**子树路径模式（Subtree Path Pattern）**。它的匹配规则类似于路径末尾隐式带有一个通配符，因此**所有以 `"/static/"` 开头的请求路径**都会匹配到这条路由。
 
+​	要创建一个新的 **`http.FileServer`** 处理器（Handler），需要调用 **`http.FileServer()`** 函数，具体写法如下：
 
+```go
+fileServer := http:FileServer(http.Dir("./ui/static/"))
+```
 
+​	当 `http.FileServer` 处理器接收到请求时，它会先移除 **URL 路径开头的 `/`**，然后在 `./ui/static` 目录中查找与请求路径对应的文件，并将该文件返回给客户端。
+
+​	因此，为了使其能够正确工作，我们必须在将请求交给 `http.FileServer` 之前，先从 URL 路径中移除前缀 `"/static"`。否则，`http.FileServer` 将会去查找一个并不存在的文件，最终向客户端返回 **404 Not Found（页面未找到）** 响应。
+
+​	幸运的是，Go 标准库提供了专门用于完成这一任务的辅助函数 **`http.StripPrefix()`**。
+
+​	请打开 `main.go` 文件，并添加如下代码，使文件最终内容如下所示：
+
+```
+File: main.go
+```
+
+```go
+package main
+
+import (
+	"log"
+	"net/http"
+)
+
+func main() {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", home)
+	mux.HandleFunc("/snippet", showSnippet)
+	mux.HandleFunc("/snippet/create", createSnippet)
+
+	// 创建一个静态文件服务器，用于提供 "./ui/static" 目录中的文件
+	// 注意，传递给 http.Dir() 的路径是相对于项目根目录（Project Root）的相对路径
+	fileServer := http.FileServer(http.Dir("./ui/static/"))
+
+	// 使用 mux.Handle() 注册路由，将 fileServer 设置为所有以 "/static/"
+	// 开头的 URL 路径的处理器（Handler）。对于匹配到的请求，在交由
+	// fileServer 处理之前，会先移除 URL 路径中的 "/static" 前缀
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	log.Println("Starting server on :4000")
+	err := http.ListenAndServe(":4000", mux)
+	log.Fatal(err)
+}
+```
+
+​	完成上述代码后，重新启动应用程序，并在浏览器中访问 `http://localhost:4000/static/`。
+
+​	如果一切正常，你将看到 **`ui/static`** 目录的可浏览目录列表（Directory Listing），其效果如下图所示：
+
+![image-20260627162236748](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260627162236748.png)
+
+​	你可以自行浏览该目录列表，并查看其中的各个文件。
+
+​	例如，访问 `http://localhost:4000/static/css/main.css`，浏览器将直接显示 `main.css` 文件的内容，如下图所示：
+
+![image-20260627163215850](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260627163215850.png)
+
+##### 使用静态文件
+
+​	文件服务器正常工作后，我们现在可以更新 `ui/html/base.layout.tmpl` 文件以使用静态文件：
+
+```
+File: ui/html/base.layout.tmpl
+```
+
+```html
+{{define "base"}}
+<!doctype html>
+<html lang='en'>
+    <head>
+        <meta charset='utf-8'>
+        <title>{{template "title" .}} - Snippetbox</title>
+        <link rel='stylesheet' href='/static/css/main.css'>
+        <link rel="shortcut icon" href='/static/img/favicon.ico' type="image/x-icon">
+        <link rel="stylesheet" href='https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700'>
+    </head>
+    <body>
+        <header>
+            <h1><a href='/'>Snippetbox</a> </h1>
+        </header>
+        <nav>
+            <a href='/'>Home</a>
+        </nav>
+        <main>
+            {{template "main" .}}
+        </main>
+        <!-- Invoke the footer template -->
+        {{template "footer" .}}
+        <script src="/static/js/main.js" type="text/javascript"></script>
+    </body>
+</html>
+{{end}}
+```
+
+​	保存上述修改后，访问 `http://localhost:4000`。
+
+​	如果一切正常，首页现在应该如下图所示：
+
+![image-20260627165026518](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260627165026518.png)
+
+##### 附加信息
+
+Go 的文件服务器（`http.FileServer`）提供了一些非常实用的特性，值得了解：
+
+- 在查找文件之前，它会先通过 **`path.Clean()`** 函数对所有请求路径进行规范化处理，自动移除 URL 路径中的 `.` 和 `..` 等路径元素，从而有效防止**目录遍历攻击（Directory Traversal Attack）**。如果你使用的路由器（Router）不会自动对 URL 路径进行规范化处理，那么这一特性尤为重要。
+
+- `http.FileServer` **完全支持 Range 请求（范围请求）**。这一特性对于提供大文件下载非常有用，因为它能够支持**断点续传**。例如，可以使用 `curl` 请求 `logo.png` 文件中 **100～199 字节**的数据，以验证这一功能，如下所示：
+
+```bash
+$ curl -i -H "Range: bytes=100-199" --output - http://localhost:4000/static/img/logo.png
+HTTP/1.1 206 Partial Content
+Accept-Ranges: bytes
+Content-Length: 100
+Content-Range: bytes 100-199/1075
+Content-Type: image/png
+Last-Modified: Thu, 04 May 2017 13:07:52 GMT
+Date: Sat, 27 Jun 2026 08:52:57 GMT
+
+[binary data]
+```
+
+- `http.FileServer` 会自动支持 **`Last-Modified`** 和 **`If-Modified-Since`** 请求头。如果文件自用户上次请求以来没有发生变化，`http.FileServer` 将返回 **`304 Not Modified`** 状态码，而不会再次发送文件内容。这有助于降低客户端和服务器之间的网络延迟，并减少双方的处理开销。
+
+- `http.FileServer` 会根据文件扩展名，通过 **`mime.TypeByExtension()`** 函数自动设置 **`Content-Type`** 响应头。如有需要，还可以使用 **`mime.AddExtensionType()`** 函数为自定义文件扩展名添加对应的 MIME 类型。
+
+**性能（Performance）**
+
+​	在前面的代码中，我们将 `http.FileServer` 配置为从硬盘上的 **`./ui/static`** 目录提供静态文件服务。
+
+​	不过，需要注意的是，当应用程序运行起来之后，`http.FileServer` 实际上通常并不会每次都从磁盘读取这些文件。无论是 Windows 还是类 Unix 操作系统，都会将最近访问过的文件缓存到内存（RAM）中。因此，对于经常访问的静态文件，`http.FileServer` 很可能直接从内存中读取，而无需每次都进行速度相对较慢的磁盘 I/O 操作。
+
+ **提供单个文件（Serving Single Files）**
+
+​	有时候，你可能只需要在某个处理器（Handler）中返回一个指定的文件。对于这种场景，可以使用 **`http.ServeFile()`** 函数，使用方式如下所示：
+
+```go
+func downloadHandler(w http.ResponseWriter, r *http.Request) {
+    http.ServeFile(w, r, "./ui/static/file.zip")
+}
+```
+
+> [!WARNING]
+>
+> **`http.ServeFile()` **不会自动对文件路径进行规范化处理。如果文件路径是根据**不可信的用户输入**构造的，为了防止**目录遍历攻击（Directory Traversal Attack）**，在调用 `http.ServeFile()` 之前，必须先使用 **`filepath.Clean()`** 对输入路径进行规范化处理。
+
+**禁用目录列表**
+
+​	如果你希望**禁用目录列表（Directory Listing）**，可以采用多种不同的方法。
+
+​	其中，最简单的方法是在**需要禁用目录列表的目录**中添加一个空白的 **`index.html`** 文件。这样，当用户访问该目录时，服务器将返回这个 `index.html` 文件，而不是显示目录列表。由于该文件为空，因此客户端会收到一个 **`200 OK`** 响应，但响应体（Body）为空。
+
+​	如果希望对 **`./ui/static`** 目录下的**所有子目录**都应用这一方式，可以执行下面的命令：
+
+```bash
+$ find ./ui/static -type d -exec touch {}/index.html \;
+```
+
+​	一种更复杂（但通常也更推荐）的解决方案是，自定义实现 **`http.FileSystem`** 接口，并在访问目录时返回 **`os.ErrNotExist`** 错误，使服务器将目录视为不存在，从而禁止目录列表的显示。
+
+​	关于这种方案的完整原理和示例代码，可以参考作者提供的博客文章。
 
 
 
 #### 2.10. http.Handler 接口
 
+---
+
+​	在继续后面的内容之前，我们需要先学习一些相关的理论知识。这部分内容稍微有些复杂，如果你觉得本章阅读起来比较吃力，也不用担心。可以先继续完成应用程序的开发，等对 Go 更加熟悉之后，再回过头来学习这一部分内容。
+
+​	在前面的章节中，我们多次提到了 **Handler（处理器）** 这个术语，但一直没有详细说明它的真正含义。严格来说，**Handler** 是指**任何实现了 `http.Handler` 接口的对象**：
+
+```go
+type Handler interface {
+    ServeHTTP(ResponseWriter, *Request)
+}
+```
+
+​	简单来说，一个对象要成为 **Handler（处理器）**，就必须实现一个**方法签名完全符合要求**的 **`ServeHTTP()`** 方法，其定义如下：
+
+```go
+ServeHTTP(http.ResponseWriter, *http.Request)
+```
+
+​	因此，一个最简单的 **Handler（处理器）** 可以写成下面这样：
+
+```go
+type home struct {}
+
+func (h *home) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    w.Write([]byte("This is my home page"))
+}
+```
+
+​	这里我们有一个对象（在这个例子中是一个 `home` 结构体，但它也可以是字符串、函数或其他任何类型），并且我们在该对象上实现了一个方法，其签名为 `ServeHTTP(http.ResponseWriter, *http.Request)`。这样就已经满足了 **Handler（处理器）** 的全部要求。
+
+​	随后，你可以通过 **`servemux` 的 `Handle` 方法**将该 Handler 注册进去，如下所示：
+
+```go
+mux := http.NewServeMux()
+mux.Handle("/", &home{})
+```
+
+​	当此 servemux 接收到 "/"的 HTTP 请求时，它将调用 home结构的 ServeHTTP()方法——这反过来写入 HTTP 响应。
+
+##### Handler functions
+
+​	不过，专门为了实现 `ServeHTTP()` 方法而去创建一个对象，这种方式显得比较冗长，也有些不够直观。因此在实际开发中，更常见的做法是像我们前面一直使用的那样，直接使用普通函数来编写 handler。例如：
+
+```go
+func home(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("This is my home page"))
+}
+```
+
+​	但是这个 `home` 函数只是一个普通函数，它并没有实现 `ServeHTTP()` 方法。因此从严格意义上来说，它并不是一个 **Handler（处理器）**。
+
+​	因此，我们需要使用 **`http.HandlerFunc()` 适配器（adapter）**，将它转换为一个合法的 Handler，如下所示：
+
+```go
+mux := http.NewServeMux()
+mux.Handle("/", http.HandlerFunc(home))
+```
+
+​	`http.HandlerFunc()` 适配器的工作原理是：它会自动为 `home` 函数“附加”一个 `ServeHTTP()` 方法。当该方法被调用时，它实际上只是转而执行原始 `home` 函数的内容。
+
+​	从本质上讲，这是一种略显绕但非常方便的方式，用来将一个普通函数“转换”为满足 `http.Handler` 接口的对象。
+
+​	在本项目的前面部分，我们一直使用 `HandleFunc()` 方法将 handler 函数注册到 `servemux` 中。实际上，这只是 Go 提供的一种语法糖（syntactic sugar），它在内部完成了“函数转 Handler 并注册”的两个步骤，而无需开发者手动操作。
+
+​	上面的代码在功能上等价于：
+
+```go
+mux := http,NewServeMux()
+mux.HandleFunc("/", home)
+```
+
+##### 链式组合
+
+​	眼尖的读者可能已经在本项目一开始就注意到了一个有趣的细节：`http.ListenAndServe()` 函数的第二个参数，实际上要求传入一个 **`http.Handler` 对象**
+
+```go
+func ListenAndServe(addr string, handler Handler) error
+```
+
+​	但是我们一直传入的参数其实是一个 **servemux（请求多路复用器）**。
+
+​	之所以可以这样做，是因为 `servemux` 同样实现了 `ServeHTTP()` 方法，因此它也满足 `http.Handler` 接口的要求。
+
+​	从理解上来说，可以把 `servemux` 看作一种特殊的 **Handler（处理器）**：它本身并不直接返回响应，而是根据请求的 URL 路径，将请求转发给另一个具体的 handler 进行处理。
+
+​	这种理解方式有助于简化整体模型，而且也并不抽象——在 Go 中，将多个 handler 进行**链式组合（chaining handlers）**是一种非常常见的编程模式，在后续项目中我们也会大量使用。
+
+​	实际上，真实的执行过程如下：
+
+​	当服务器接收到一个新的 HTTP 请求时，会首先调用 `servemux` 的 `ServeHTTP()` 方法。该方法会根据请求的 URL 路径查找对应的 handler，然后再调用该 handler 的 `ServeHTTP()` 方法进行处理。
+
+​	可以把一个 Go Web 应用理解为：**一条由多个 `ServeHTTP()` 方法依次调用所构成的处理链条**。
+
+##### 请求是并发处理的
+
+​	还有一件非常重要的事情需要强调：所有进入的 HTTP 请求，都会在各自独立的 **goroutine** 中进行处理。对于高并发的服务器来说，这意味着你的 handler 中的代码（以及它所调用的代码）很可能是**并发执行的**。虽然这种机制让 Go 能够具备非常高的性能表现，但它的代价是：当多个 handler 同时访问共享资源时，你必须注意并发安全问题，并防止出现**竞态条件（race conditions）**。
+
+
+
 ### 3. 配置和错误处理
+
+---
+
+​	在本书的这一部分，我们将进行一些“整理工作（housekeeping）”。我们不会为应用程序增加太多新的功能，而是专注于改进其结构，使其在不断扩展时更易于维护和管理。
+
+你将学习如何：
+
+-  使用命令行参数（command-line flags），以一种简单且符合 Go 语言习惯的方式，在程序运行时配置应用的各项设置。
+- 增强应用的日志（log）输出，使其包含更多信息，并能够根据日志类型（或级别）进行分类管理。
+- 以一种可扩展、类型安全且不影响测试编写的方式，将依赖项传递给各个 handler。
+-  集中化错误处理逻辑，从而避免在代码中重复编写相同的错误处理流程。
+
+
 
 #### 3.1. 管理配置设置
 
+---
+
+​	目前，我们的 Web 应用程序在 `main.go` 文件中包含了几个**硬编码（hard-coded）**的配置项：
+
+- 服务器监听的网络地址（当前为 `":4000"`）。
+- 静态资源目录的路径（当前为 `"./ui/static"`）。
+
+​	将这些配置直接写死在代码中并不是一种理想的做法。这样会导致**配置与业务代码耦合在一起**，并且无法在程序运行时动态修改配置。而在实际开发中，不同的运行环境（如开发环境、测试环境和生产环境）通常需要使用不同的配置，因此运行时可配置性非常重要。
+
+​	在本章中，我们将首先对这一问题进行改进，使服务器的监听地址能够在**程序运行时进行配置**。
+
+##### 命令行标志
+
+​	在 Go 中，一种常见且符合 Go 语言编程习惯（idiomatic）的配置管理方式，是在**启动应用程序时使用命令行参数（Command-line Flags）**来指定配置项。例如：
+
+```bash
+$ go run ./cmd/web -addr=":80"
+```
+
+​	在 Go 中，接收并解析**命令行参数（Command-line Flag）**最简单的方式，就是使用下面这样的一行代码：
+
+```go
+addr := flag.String("addr", ":4000", "HTTP network address")
+```
+
+​	这行代码实际上定义了一个新的**命令行参数（Command-line Flag）**，其名称为 `addr`，默认值为 `":4000"`，并附带了一段简短的帮助信息，用于说明该参数的作用。
+
+​	程序运行时，该命令行参数的值将保存到 `addr` 变量中。
+
+​	接下来，我们将在应用程序中使用这个命令行参数，并将原来硬编码的服务器监听地址替换为可通过命令行指定的配置。
+
+```
+File: cmd/web/main.go	
+```
+
+```go
+package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+)
+
+func main() {
+	// 定义一个名为 "addr" 的新命令行标志，默认值为 ":4000"
+	// 并附带简短帮助信息说明该标志的用途
+	// 该标志的值将在运行时存入 addr 变量
+	addr := flag.String("addr", ":4000", "HTTP network address")
+
+	// 关键：调用 flag.Parse() 解析命令行标志
+	// 这会读取命令行标志的值并赋给 addr 变量
+	// 必须在使用 addr 变量之前调用，否则它将始终包含默认值 ":4000"
+	// 若解析过程中遇到任何错误，应用将被终止
+	flag.Parse()
+	
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", home)
+	mux.HandleFunc("/snippet", showSnippet)
+	mux.HandleFunc("/snippet/create", createSnippet)
+
+	// 创建一个静态文件服务器，用于提供 "./ui/static" 目录中的文件
+	// 注意，传递给 http.Dir() 的路径是相对于项目根目录（Project Root）的相对路径
+	fileServer := http.FileServer(http.Dir("./ui/static/"))
+
+	// 使用 mux.Handle() 注册路由，将 fileServer 设置为所有以 "/static/"
+	// 开头的 URL 路径的处理器（Handler）。对于匹配到的请求，在交由
+	// fileServer 处理之前，会先移除 URL 路径中的 "/static" 前缀
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	log.Println("Starting server on :4000")
+	err := http.ListenAndServe(":4000", mux)
+	log.Fatal(err)
+}
+```
+
+​	保存上述修改后，在启动应用程序时尝试使用 **`-addr`** 命令行参数。
+
+​	此时，你会发现服务器将监听你所指定的网络地址，例如：
+
+```bash
+$ go run ./cmd/web -addr=":9999"
+2026/06/28 15:19:24 Starting server on :9999
+```
+
+> [!NOTE]
+>
+> **注意：**端口号 **`0~1023`** 属于**系统保留端口（Privileged Ports）**，通常只有具有 **Root（Linux/Unix）** 或 **Administrator（Windows）** 权限的进程才能使用。 如果应用程序尝试监听这些端口，而当前进程没有足够的权限，那么在启动时通常会出现 **`bind: permission denied`（绑定端口失败：权限不足）** 的错误提示。
+
+##### 默认值
+
+**命令行参数（Command-line Flags）是完全可选的。**
+
+​	例如，如果在启动应用程序时没有指定 **`-addr`** 参数，服务器将自动使用 **`:4000`** 作为监听地址，也就是我们为该参数设置的**默认值（Default Value）**。
+
+```bash
+$ go run ./cmd/web
+2026/06/28 15:22:30 Starting server on :4000
+```
+
+​	命令行参数的**默认值（Default Value）**并没有固定的规定，应根据实际需求进行设置。
+
+​	作者通常会将默认值设置为适合**开发环境（Development Environment）**的配置，这样在开发应用程序时可以减少输入，提高开发效率。
+
+​	不过，具体采用哪种方式因人而异（YMMV，Your Mileage May Vary）。你也可以选择一种更加稳妥的做法，将默认值设置为适用于**生产环境（Production Environment）**的配置。
+
+##### 类型转换
+
+​	在上面的代码中，我们使用了`flag.String()`函数来定义命令行标志。这样做的好处是将用户在运行时提供的任何值转换为字符串类型。如果该值无法转换为字符串，应用程序将记录错误并退出。
+
+​	Go 标准库还提供了许多用于定义命令行参数的函数，例如 **`flag.Int()`**、**`flag.Bool()`** 和 **`flag.Float64()`** 等。
+
+​	它们的使用方式与 **`flag.String()`** 完全相同，不同之处在于，这些函数会根据各自的类型，自动将命令行参数的值转换为对应的数据类型。
+
+##### 自动帮助
+
+​	另一个很棒的功能是您可以使用 `-help` 标志列出应用程序的所有可用命令行标志及其随附的帮助文本。试一试：
+
+```bash
+$ go run ./cmd/web -help
+Usage of C:\...\Local\go-build\ea\eafe0774...\web.exe:
+  -addr string
+        HTTP network address (default ":4000")
+```
+
+​	总体来说，到目前为止，我们已经完成了一个不错的改进。
+
+​	我们采用了一种**符合 Go 语言编程习惯（idiomatic）**的方式，在程序运行时管理应用程序的配置；同时，也为应用程序与其运行配置之间建立了一套**明确且具有文档说明的配置接口**。
+
+##### 附加信息
+
+**环境变量**
+
+​	如果你之前开发和部署过 Web 应用程序，可能会想到：**环境变量（Environment Variables）**怎么办？将配置项存放在环境变量中，不也是一种良好的实践吗？
+
+​	当然可以。你可以将应用程序的配置项保存在环境变量中，并通过 **`os.Getenv()`** 函数在程序中直接读取这些配置，例如：
+
+```go
+addr := os.Getenv("SNIPPETBOX_ADDR")
+```
+
+​	不过，与**命令行参数（Command-line Flags）**相比，使用环境变量也存在一些不足之处。
+
+​	无法为配置项指定默认值。如果环境变量不存在，`os.Getenv()` 返回的将是一个空字符串（`""`）。
+
+​	 无法像命令行参数一样，自动提供 `-help` 帮助信息。
+​	`os.Getenv()` 的返回值始终是 **`string`** 类型，不会像 `flag.Int()`、`flag.Bool()` 等命令行参数函数那样，自动完成数据类型转换。
+
+​	因此，一种更好的做法是**结合环境变量和命令行参数**：在启动应用程序时，将环境变量的值作为命令行参数传递给程序。这样既能够利用环境变量管理配置，又能够享受命令行参数带来的默认值、帮助信息以及自动类型转换等优势。例如：
+
+```bash
+# Windows cmd 
+$ set SNIPPETBOX_ADDR=":9999"
+# Windows PowerShell
+$ $env:SNIPPETBOX_ADDR=":9999"
+```
+
+**Boolean Flags**
+
+​	对于使用 **`flag.Bool()`** 定义的**布尔类型命令行参数**，如果省略参数值，则等同于将该参数设置为 **`true`**。
+
+​	也就是说，下面两条命令的效果是完全相同的：
+
+```bash
+$ go run example.go -flag=true
+$ go run example.go -flag
+```
+
+​	如果需要将**布尔类型命令行参数**设置为 **`false`**，则必须显式指定 **`-flag=false`**。
+
+**预先存在的变量**
+
+​	除了使用 `flag.String()`、`flag.Int()` 等函数外，Go 还提供了 **`flag.StringVar()`**、**`flag.IntVar()`**、**`flag.BoolVar()`** 等函数，用于将**命令行参数解析后的值直接存储到已有变量的内存地址中**。
+
+​	当希望将所有配置项统一保存到一个**结构体（struct）**中时，这种方式会非常方便。
+
+​	下面是一个简单的示例：
+
+```go
+type Config struct {
+    Addr 	  String
+    StaticDir String
+}
+
+...
+
+cfg := new(Config)
+flag.StringVar(&cfg.Addr, "addr", ":4000", "HTTP network address")
+flag.StringVar(&cfg.StaticDir, ""static-dir", "./ui/static", "Path to static assets")
+flag.Parse()
+```
+
+
+
 #### 3.2. 分级记录
+
+---
+
+​	目前，在我们的 `main.go` 文件中，日志信息是通过 **`log.Printf()`** 和 **`log.Fatal()`** 两个函数输出的。
+
+​	这两个函数都会使用 Go 标准库提供的**默认日志记录器（Standard Logger）**输出日志。默认情况下，它会在每条日志前添加**本地日期和时间**，并将日志写入**标准错误输出（stderr）**，通常会显示在终端窗口中。
+
+​	其中，`log.Fatal()` 在输出日志之后，还会调用 **`os.Exit(1)`**，使程序立即退出。
+
+​	通常，我们可以将日志划分为两种不同的**日志级别（Log Level）**：
+
+​	**信息日志（Informational Log）**：用于记录程序正常运行的信息，例如 `"Starting server on :4000"`。
+​	**错误日志（Error Log）**：用于记录程序运行过程中发生的错误信息。
+
+```go
+log.Printf("Starting server on %s", *addr)	// Information message
+err :=http.ListenAndServe(*addr, mux)
+log.Fatal(err) // Error message
+```
+
+​	接下来，我们将为应用程序增加**分级日志（Leveled Logging）**功能，使信息日志和错误日志能够采用不同的管理方式。具体来说：
+
+​	**信息日志（INFO）**：以 `"INFO"` 作为日志前缀，并输出到**标准输出（stdout）**。
+
+​	**错误日志（ERROR）**：以 `"ERROR"` 作为日志前缀，并输出到**标准错误输出（stderr）**，同时记录调用日志的位置（包括文件名和行号），以便于程序调试。
+
+​	实现这一功能有多种方式，其中一种简单且清晰的做法是使用 **`log.New()`** 函数创建两个自定义的日志记录器（Logger）。
+
+​	打开 `main.go` 文件，并按照下面的内容进行修改：
+
+```
+File: cmd/web/main.go
+```
+
+```go
+package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+	"os"
+)
+
+func main() {
+
+	addr := flag.String("addr", ":4000", "HTTP network address")
+	flag.Parse()
+
+	// 使用 log.New() 创建一个用于记录信息日志的 logger
+	// 它接受三个参数：日志写入目标 (os.Stdout)、消息前缀字符串 ("INFO" 后跟一个制表符)
+	// 以及用于指定包含哪些附加信息的标志（本地日期和时间）
+	// 注意标志通过按位或运算符 | 组合
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+
+	// 以同样方式创建用于记录错误日志的 logger，但使用 stderr 作为目标
+	// 并使用 log.Lshortfile 标志包含相关文件名和行号
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", home)
+	mux.HandleFunc("/snippet", showSnippet)
+	mux.HandleFunc("/snippet/create", createSnippet)
+
+	// 创建一个静态文件服务器，用于提供 "./ui/static" 目录中的文件
+	// 注意，传递给 http.Dir() 的路径是相对于项目根目录（Project Root）的相对路径
+	fileServer := http.FileServer(http.Dir("./ui/static/"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	// 使用两个新的 logger 来写入消息，替代标准 logger。
+	infoLog.Printf("Starting server on %s", *addr)
+	err := http.ListenAndServe(*addr, mux)
+	errorLog.Fatal(err)
+}
+```
+
+​	下面来实际体验一下这两个日志记录器的效果。
+
+​	首先运行应用程序，然后再打开一个新的终端窗口，再次启动同一个应用程序。
+
+​	由于服务器要监听的网络地址 **`:4000`** 已经被第一个应用程序占用，因此第二次启动时会产生一个错误。
+
+​	此时，在第二个终端窗口中，你应该会看到类似下面的日志输出：
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/28 15:49:46 Starting server on :4000
+ERROR   2026/06/28 15:49:46 main.go:38: listen tcp :4000: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+exit status 1
+```
+
+​	请注意，这两条日志消息使用了**不同的前缀**，因此在终端中可以很容易地区分**信息日志（INFO）**和**错误日志（ERROR）**。
+
+​	另外，错误日志还额外包含了**调用日志记录器的源文件名和代码行号**（例如 `main.go:38`），这对于定位问题和调试程序非常有帮助。
+
+> [!TIP]
+>
+> **如果希望日志中显示**完整的文件路径，而不仅仅是文件名，可以在创建自定义 Logger 时使用 **`log.Llongfile`** 标志，而不是 **`log.Lshortfile`**。 此外，如果希望日志统一使用 **UTC 时间**（而不是本地时间），可以在 Logger 的配置中添加 **`log.LUTC`** 标志。
+
+##### 解耦日志记录
+
+​	将日志输出到标准输出流（**stdout**）和标准错误流（**stderr**）的一个重要优势是：可以实现应用程序与日志系统的**解耦（decoupling）**。
+
+​	也就是说，应用程序本身不需要关心日志的路由方式或存储位置，从而可以根据不同环境更灵活地管理日志。
+
+​	在开发环境中，由于标准输出会直接显示在终端，因此可以很方便地查看日志内容。
+
+​	而在测试环境（staging）或生产环境（production）中，可以将标准输出和标准错误重定向到最终存储位置以便查看和归档。这些存储位置可以是本地磁盘文件，也可以是类似 **Splunk** 这样的日志服务平台。无论采用哪种方式，日志的最终去向都可以由运行环境独立控制，而不需要修改应用程序本身。
+
+​	例如，我们可以在启动应用程序时，将 stdout 和 stderr 重定向到磁盘文件中，如下所示：
+
+```bash
+$ go run ./cmd/web 1>>tmp/info.log 2>>tmp/error.log
+```
+
+> [!NOTE]
+>
+> 使用双重重定向符号 **`>>`** 时，输出内容会被**追加到已有文件末尾**，而不是在启动应用程序时**覆盖（截断）原文件内容**。
+
+##### http.Server 错误日志
+
+​	我们还需要对应用程序做一个额外的修改。
+
+​	默认情况下，如果 Go 的 HTTP 服务器在运行过程中遇到错误，它会使用标准日志记录器（standard logger）进行输出。
+
+​	为了保持日志风格的一致性，更合理的做法是改用我们自定义的 **`errorLog` 日志记录器**来输出这些错误信息。
+
+​	要实现这一点，我们需要显式创建一个 **`http.Server` 结构体**，用于集中管理服务器的配置参数，而不是继续使用 `http.ListenAndServe()` 这种快捷方式。
+
+​	下面通过代码示例来说明这一做法：
+
+````
+File: cmd/web/main.go
+```
+
+```go
+package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+	"os"
+)
+
+func main() {
+
+	addr := flag.String("addr", ":4000", "HTTP network address")
+	flag.Parse()
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", home)
+	mux.HandleFunc("/snippet", showSnippet)
+	mux.HandleFunc("/snippet/create", createSnippet)
+
+	fileServer := http.FileServer(http.Dir("./ui/static/"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	// 初始化一个新的 http.Server 结构体。设置 Addr 和 Handler 字段，
+	// 使服务器使用与之前相同的网络地址和路由，并设置 ErrorLog 字段，
+	// 以便服务器在出现任何问题时使用自定义的 errorLog logger。
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  mux,
+	}
+	
+	infoLog.Printf("Starting server on %s", *addr)
+	// 调用新 http.Server 结构体的 ListenAndServe() 方法。
+	err := srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+```
+
+##### 附加信息
+
+**其他日志记录方法**
+
+​	到目前为止，在本书中我们已经使用了 `Println()`、`Printf()` 和 `Fatal()` 等方法来输出日志信息，但 Go 还提供了许多其他日志方法，值得进一步熟悉和了解。
+
+​	作为一个经验法则（rule of thumb），应尽量避免在 `main()` 函数之外使用 `Panic()` 和 `Fatal()` 这类方法。
+
+​	更推荐的做法是：在其他函数中通过**返回错误（error）**的方式进行处理，而只有在 `main()` 函数中才根据情况直接触发 panic 或退出程序。
+
+**并发日志记录**
+
+​	通过 `log.New()` 创建的自定义日志记录器是**并发安全（concurrency-safe）**的。
+
+​	你可以在多个 goroutine 之间共享同一个 logger，并在 handler 中同时使用，而无需担心发生竞态条件（race conditions）。
+
+​	但需要注意的是，如果存在多个 logger 同时向同一个输出目标写入日志，那么必须确保该输出目标底层的 `Write()` 方法本身也是**并发安全的**。
+
+**记录到文件**
+
+​	如前所述，通常更推荐的做法是将日志输出到标准输出流（standard streams），并在运行时将其重定向到文件中。
+
+​	但如果你不希望采用这种方式，也可以在 Go 中直接打开一个文件，并将其作为日志输出的目标。
+
+​	下面是一个简单示例：
+
+```go
+f, err := os.OpenFile("/tmp/info.log", os.O_RDWR|os.O_CREATE, 0666)
+if err != nil {
+    log.Fatal(err)
+}
+defer f.Close()
+
+infoLog := log.New(f, "INFO\t", log.Ldate|log.Ltime)
+```
+
+
 
 #### 3.3. 依赖注入
 
+---
+
+​	我们的日志系统还存在一个需要修正的问题。
+
+​	如果你打开 `handlers.go` 文件，会发现 `home` 这个 handler 函数仍然在使用 Go 的**标准日志记录器（standard logger）**来输出错误信息，而不是我们希望统一使用的 **`errorLog` 日志记录器**。
+
+```go
+func home(w http.ResponseWriter, r *http.Request) {
+	...
+
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+		return
+	}
+
+	err = ts.Execute(w, nil)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+	}
+}
+```
+
+​	这就引出了一个非常重要的问题：我们应该如何让在 `main()` 中创建的 **`errorLog` 日志记录器**，在 `home` handler 函数中也可以被访问到？
+
+​	进一步来看，这个问题可以扩展为一个更通用的设计问题：在 Web 应用中，handler 往往需要依赖多种资源，例如数据库连接池、统一的错误处理器、模板缓存等。那么，本质上我们需要解决的是：**如何将这些依赖提供给各个 handler 使用？**
+
+​	针对这个问题，有多种实现方式，其中最简单的一种是使用**全局变量（global variables）**。但通常来说，这并不是推荐做法。
+
+​	更好的实践是采用**依赖注入（dependency injection）**的方式将依赖传递给 handler。这种方式可以让代码更加清晰、明确，同时减少出错概率，也更方便进行单元测试。
+
+​	对于像我们这样所有 handler 都位于同一个 package 的项目来说，一个比较优雅的实现方式是：将所有依赖封装到一个自定义的 **application 结构体（struct）**中，然后将 handler 方法定义为该结构体的方法。
+
+​	下面我们来演示具体实现。
+
+​	打开 `main.go` 文件，并创建一个新的 `application` 结构体，如下所示：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+package main
+
+import (
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+)
+
+type application struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+}
+
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// 初始化一个包含两个文件路径的切片
+	// 注意，home.page.tmpl 文件必须是切片中的 *第一个* 文件。
+	files := []string{
+		"./ui/html/home.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+
+	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
+	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
+	// 500 Internal Server Error 响应
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.errorLog.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+		return
+	}
+
+	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
+	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
+	err = ts.Execute(w, nil)
+	if err != nil {
+		app.errorLog.Println(err.Error())
+		http.Error(w, "Internal Server Error", 500)
+	}
+}
+
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+}
+
+func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Write([]byte("Create a new snippet..."))
+}
+```
+
+​	最后，我们将在 `main.go` 文件中把所有组件**串联（wire）起来**，完成整体整合：
+
+`````
+File: cmd/web/main.go
+```
+
+```go
+package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+	"os"
+)
+
+func main() {
+
+	addr := flag.String("addr", ":4000", "HTTP network address")
+	flag.Parse()
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	app := &application{
+		infoLog:  infoLog,
+		errorLog: errorLog,
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", app.home)
+	mux.HandleFunc("/snippet", app.showSnippet)
+	mux.HandleFunc("/snippet/create", app.createSnippet)
+
+	fileServer := http.FileServer(http.Dir("./ui/static/"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	// 初始化一个新的 http.Server 结构体。设置 Addr 和 Handler 字段
+	// 使服务器使用与之前相同的网络地址和路由，并设置 ErrorLog 字段
+	// 以便服务器在出现任何问题时使用自定义的 errorLog logger
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  mux,
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	// 调用新 http.Server 结构体的 ListenAndServe() 方法
+	err := srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+```
+
+​	我理解这种实现方式一开始可能会让人觉得有些复杂甚至略显绕（convoluted），尤其是相比于直接将 `infoLog` 和 `errorLog` 定义为全局变量这种更简单的做法。
+
+​	但请继续坚持这种方式。
+
+​	随着应用程序规模逐渐增长，当我们的 handler 需要依赖的组件越来越多时，这种设计模式的优势将会逐渐体现出来。
+
+##### 添加一个故意的错误
+
+​	接下来，我们通过在应用中**故意制造一个错误（deliberate error）**来进行验证。
+
+​	打开终端，将 `ui/html/home.page.tmpl` 文件重命名为 `ui/html/home.page.bak`。
+
+​	当我们重新运行应用程序并请求首页时，由于 `ui/html/home.page.tmpl` 文件已经不存在，因此此时应该会触发一个错误。
+
+​	现在可以执行上述修改操作：
+
+```bash
+$ ren ui/html/home.page.tmpl home.page.bak  
+```
+
+​	然后重新运行应用程序，并在浏览器中访问 ``。
+
+​	此时，你应该会在浏览器中看到一个 **Internal Server Error（内部服务器错误）** 的 HTTP 响应，同时在终端中也会输出一条对应的错误日志，其格式类似如下：
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/28 16:38:13 Starting server on :4000
+ERROR   2026/06/28 16:38:48 handlers.go:35: open ./ui/html/home.page.tmpl: The system cannot find the file specified.
+```
+
+​	请注意，此时日志信息已经以 **`ERROR`** 作为前缀，并且错误来源显示为 `handlers.go` 文件的第 35 行。
+
+​	这很好地说明了：我们自定义的 **`errorLog` 日志记录器**已经作为依赖成功传递到了 `home` handler 中，并且运行符合预期。
+
+​	目前请先保留这个“人为制造的错误”，在下一章中我们还会用到它。
+
+##### 附加信息
+
+**依赖注入闭包**
+
+​	如果你的 handler 分布在多个不同的 package 中，那么我们当前使用的这种**依赖注入模式**就不再适用。
+
+​	在这种情况下，可以采用另一种替代方案：创建一个 `config` 包，并在其中导出一个 `Application` 结构体，然后让 handler 函数通过**闭包（closure）**的方式“捕获”该结构体，从而访问其中的依赖。
+
+​	其大致实现方式如下：
+
+```go
+func mian() {
+    app := &config.Application {
+        ErrorLog: log.New((os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+    }
+    
+	mux.Handle("/", handlers.Home(app)) 
+}
+                          
+func Home(app *config.Application) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		...
+		ts, err := template.ParseFiles(files...)
+		if err != nil {
+			app.ErrorLog.Println(err.Error())
+			http.Error(w, "Internal Server Error", 500)
+			return
+		}
+		...
+	}
+}
+```
+
+​	你可以在这个 Gist 中找到一个更完整、更具体的示例，展示如何使用**闭包（closure）模式**来实现依赖注入。
+
+
+
 #### 3.4. 集中错误处理
+
+---
+
+​	接下来，我们将通过把一部分**错误处理代码移动到辅助方法（helper methods）中**，来整理（neaten up）当前的应用结构。
+
+这样做可以更好地实现职责分离（separation of concerns），并避免在后续开发过程中重复编写相同的代码。
+
+​	现在请在 `cmd/web` 目录下创建一个新的文件 `helpers.go`：
+
+```bash
+$ type nul > cmd/web/helpers.go 
+```
+
+​	然后在该文件中添加如下代码：
+
+```
+File: cmd/web/helpers.go 
+```
+
+```go
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"runtime/debug"
+)
+
+// serverError 辅助函数将错误信息和堆栈跟踪写入 errorLog
+// 然后向用户发送通用的 500 Internal Server Error 响应
+func (app *application) serverError(w http.ResponseWriter, err error) {
+	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
+	app.errorLog.Println(trace)
+
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+
+// clientError 辅助函数向用户发送指定的状态码及对应的描述信息
+// 本书后面将用它来发送诸如 400 "Bad Request" 之类的响应
+// 用于处理用户请求中的问题
+func (app *application) clientError(w http.ResponseWriter, status int) {
+	http.Error(w, http.StatusText(status), status)
+}
+
+// 为保持一致性，我们还实现一个 notFound 辅助函数
+// 它只是对 clientError 的便捷封装，用于向用户发送 404 Not Found 响应
+func (app *application) notFound(w http.ResponseWriter) {
+	app.clientError(w, http.StatusNotFound)
+}
+```
+
+​	这里新增的代码量不多，但引入了一些非常值得理解的新特性。
+
+- 在 `serverError()` 辅助函数中，我们使用了 `debug.Stack()` 来获取当前 goroutine 的**堆栈信息（stack trace）**，并将其追加到日志中。通过堆栈信息，我们可以看到程序的执行路径，这在排查和调试错误时非常有帮助。
+
+- 在 `clientError()` 辅助函数中，我们使用了 `http.StatusText()` 方法，用于自动生成 HTTP 状态码对应的**可读文本描述**。例如：`http.StatusText(400)` 会返回 `"Bad Request"`。
+
+- 另外，我们开始使用 `net/http` 包中提供的**命名常量（named constants）**来表示 HTTP 状态码，而不是直接写数字。例如：在 `serverError()` 中使用 `http.StatusInternalServerError` 替代 `500`在 `notFound()` 中使用 `http.StatusNotFound` 替代 `404`。
+
+  使用状态码常量是一种非常好的实践，它可以让代码更加清晰，并具备更强的自解释性，尤其是在处理一些不常见的状态码时更为明显。你可以在官方文档中查看完整的状态码常量列表。
+
+​	完成以上修改后，回到 `handlers.go` 文件，并将代码更新为使用新的辅助函数：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+package main
+
+import (
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+)
+
+type application struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+}
+
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// 初始化一个包含两个文件路径的切片
+	// 注意，home.page.tmpl 文件必须是切片中的 *第一个* 文件。
+	files := []string{
+		"./ui/html/home.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+
+	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
+	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
+	// 500 Internal Server Error 响应
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
+	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
+	err = ts.Execute(w, nil)
+	if err != nil {
+		app.serverError(w, err)
+	}
+}
+
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		app.notFound(w)
+		return
+	}
+
+	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+}
+
+func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		app.clientError(w, http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Write([]byte("Create a new snippet..."))
+}
+```
+
+​	完成更新后，重新启动应用程序，并在浏览器中访问 `http://localhost:4000`。
+
+​	此时，由于我们之前保留的“人为错误”仍然存在，程序会再次触发该错误。同时，你将在终端中看到对应的错误信息以及完整的堆栈追踪（stack trace）输出：
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/28 17:04:15 Starting server on :4000
+ERROR   2026/06/28 17:04:19 helpers.go:13: open ./ui/html/home.page.tmpl: The system cannot find the file specified.
+goroutine 21 [running]:
+runtime/debug.Stack()
+        D:/Golang/GO/Gocode/go1.26.1/src/runtime/debug/stack.go:26 +0x5e
+main.(*application).serverError(0x29d6fb96210, {0x7ff6b7029200, 0x29d6fcb8000}, {0x7ff6b7026680?, 0x29d6fc82120?})
+        D:/code/snippetbox/cmd/web/helpers.go:12 +0x5d
+main.(*application).home(0x29d6fb96210, {0x7ff6b7029200, 0x29d6fcb8000}, 0x29d6fc86020?)
+        D:/code/snippetbox/cmd/web/handlers.go:35 +0x105
+net/http.HandlerFunc.ServeHTTP(0x29d6fbac300?, {0x7ff6b7029200?, 0x29d6fcb8000?}, 0x7ff6b6eaab76?)
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:2286 +0x29
+net/http.(*ServeMux).ServeHTTP(0x7ff6b6c00ab9?, {0x7ff6b7029200, 0x29d6fcb8000}, 0x29d6fc92000)
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:2828 +0x1c7
+net/http.serverHandler.ServeHTTP({0x29d6fc88000?}, {0x7ff6b7029200?, 0x29d6fcb8000?}, 0x6?)
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:3311 +0x8e
+net/http.(*conn).serve(0x29d6fc0c1b0, {0x7ff6b7029ba8, 0x29d6fb8d6b0})
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:2073 +0x650
+created by net/http.(*Server).Serve in goroutine 1
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:3464 +0x485
+```
+
+​	仔细观察你会发现一个小问题：当前日志中显示的文件名和行号是 `helpers.go:13`，因为日志实际上是在这个位置被写入的。
+
+但我们真正希望记录的是**调用发生位置（上一层调用栈）**的文件名和行号，这样才能更清楚地定位错误的真实来源。
+
+为了解决这个问题，我们可以修改 `serverError()` 方法，改用 logger 的 `Output()` 方法，并将堆栈深度（frame depth）设置为 2。
+
+重新打开 `helpers.go` 文件，并按如下方式进行修改：
+
+```
+File: cmd/web/helpers.go
+```
+
+```go
+func (app *application) serverError(w http.ResponseWriter, err error) {
+	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
+	app.errorLog.Output(2, trace)
+
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+```
+
+​	如果现在再尝试运行一次，你应该会发现日志中已经正确显示了**对应的文件名和行号（`handlers.go:35`）**，从而准确指向错误真正发生的位置：
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/28 17:07:36 Starting server on :4000
+ERROR   2026/06/28 17:07:40 handlers.go:35: open ./ui/html/home.page.tmpl: The system cannot find the file specified.
+goroutine 8 [running]:
+runtime/debug.Stack()
+        D:/Golang/GO/Gocode/go1.26.1/src/runtime/debug/stack.go:26 +0x5e
+main.(*application).serverError(0x236529f60250, {0x7ff7044b9200, 0x23652a138000}, {0x7ff7044b6680?, 0x23652a102120?})
+        D:/code/snippetbox/cmd/web/helpers.go:12 +0x5a
+main.(*application).home(0x236529f60250, {0x7ff7044b9200, 0x23652a138000}, 0x23652a106020?)
+        D:/code/snippetbox/cmd/web/handlers.go:35 +0x105
+net/http.HandlerFunc.ServeHTTP(0x236529fe0300?, {0x7ff7044b9200?, 0x23652a138000?}, 0x7ff70433ab76?)
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:2286 +0x29
+net/http.(*ServeMux).ServeHTTP(0x7ff704090ab9?, {0x7ff7044b9200, 0x23652a138000}, 0x23652a112000)
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:2828 +0x1c7
+net/http.serverHandler.ServeHTTP({0x23652a108000?}, {0x7ff7044b9200?, 0x23652a138000?}, 0x6?)
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:3311 +0x8e
+net/http.(*conn).serve(0x23652a0a21b0, {0x7ff7044b9ba8, 0x236529f5d6e0})
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:2073 +0x650
+created by net/http.(*Server).Serve in goroutine 1
+        D:/Golang/GO/Gocode/go1.26.1/src/net/http/server.go:3464 +0x485
+```
+
+##### 恢复故意的错误
+
+​	到目前为止，这个“人为制造的错误”已经不再需要了，因此我们可以将其修复，如下所示：
+
+```bash
+$ ren ui/html/home.page.bak home.page.tmpl
+```
+
+
 
 #### 3.5. 隔离应用程序路由
 
+---
+
+​	在进行代码重构的过程中，还有一个值得做的优化。
+
+​	目前我们的 `main()` 函数已经开始变得有些臃肿（crowded），为了让结构更加清晰、职责更加单一，我们可以将应用程序的**路由定义（route declarations）**拆分出去，放到一个独立的 `routes.go` 文件中，例如：
+
+```bash
+$ type nul > cmd/web/routes.go 
+```
+
+```
+File: cmd/web/routes.go
+```
+
+```go
+package main
+
+import "net/http"
+
+func (app *application) routes() *http.ServeMux {
+	mux := http.NewServeMux()
+	
+	mux.HandleFunc("/", app.home)
+	mux.HandleFunc("/snippet", app.showSnippet)
+	mux.HandleFunc("/snippet/create", app.createSnippet)
+	
+	fileServer := http.FileServer(http.Dir("./ui/static"))
+	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
+	
+	return mux
+}
+```
+
+​	随后，我们可以更新 `main.go` 文件，使其改为使用这个新的实现：
+
+```
+File: cmd/web/main.go
+```
+
+```go
+package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+	"os"
+)
+
+func main() {
+
+	addr := flag.String("addr", ":4000", "HTTP network address")
+	flag.Parse()
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	app := &application{
+		infoLog:  infoLog,
+		errorLog: errorLog,
+	}
+
+	// 初始化一个新的 http.Server 结构体。设置 Addr 和 Handler 字段
+	// 使服务器使用与之前相同的网络地址和路由，并设置 ErrorLog 字段
+	// 以便服务器在出现任何问题时使用自定义的 errorLog logger
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  app.routes(),
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	// 调用新 http.Server 结构体的 ListenAndServe() 方法
+	err := srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+```
+
+这样处理之后，代码结构明显更加清晰（neater）了。
+
+当前应用的路由已经被独立封装在 `app.routes()` 方法中，实现了良好的隔离与封装。
+
+同时，`main()` 函数的职责也被有效收敛，现在它只负责以下三件事情：
+
+- 解析应用程序的运行时配置（runtime configuration）
+- 初始化并构建 handler 所需的依赖（dependencies）
+- 启动 HTTP 服务器（HTTP server）
+
+
+
 ### 4. 数据库驱动的响应
+
+---
+
+为了让我们的 Snippetbox Web 应用真正具备实用价值，我们需要一个用于**存储（persist）用户输入数据**的地方，并且能够在运行时对这些数据进行动态查询。
+
+可用于本应用的数据存储方案有很多种，每种方案都有各自的优缺点，而我们将选择目前非常流行的**关系型数据库 MySQL**。
+
+在这一部分中，你将学习以下内容：
+
+- 如何从 Go Web 应用连接 MySQL（特别是如何建立一个**可复用的数据库连接池**）
+- 如何创建一个独立的 `models` 包，使数据库相关逻辑可复用，并与 Web 应用解耦
+- 如何使用 Go 的 `database/sql` 包中的不同函数执行各类 SQL 语句，以及如何避免常见错误（例如导致服务器资源耗尽的问题）
+- 如何通过正确使用**占位符参数（placeholder parameters）**来防止 SQL 注入攻击
+- 如何使用**事务（transactions）**，将多个 SQL 语句作为一个原子操作执行
 
 #### 4.1. 设置 MySQL
 
+如果你正在跟着本书进行实践，那么此时需要在你的计算机上安装 MySQL。
+
+MySQL 官方文档提供了适用于各种操作系统的完整安装指南；如果你使用的是 Windows，可以通过以下方式进行安装：
+
+Windows 下 MySQL **安装简易教程**
+
+1. 下载 MySQL 安装包
+
+访问 MySQL 官方下载页面：
+
+https://dev.mysql.com/downloads/installer/
+
+选择 **MySQL Installer for Windows**（推荐下载 `mysql-installer-web-community` 或完整版）。
+
+---
+
+2. 运行安装程序
+
+双击下载的 `.msi` 文件启动安装向导。
+
+常见选择：
+
+- 选择 **Developer Default**（开发者默认配置，推荐）
+  - 包含 MySQL Server + Workbench + 工具
+
+或：
+
+- 选择 **Custom**（自定义安装）
+
+---
+
+3. 安装 MySQL Server
+
+在组件列表中确认：
+
+- MySQL Server
+- MySQL Workbench（可选但推荐）
+
+点击 **Next → Execute** 开始安装。
+
+---
+
+4. 配置 MySQL Server
+
+安装完成后进入配置界面：
+
+4.1 类型选择
+
+- Development Computer（开发环境，推荐）
+
+4.2 端口
+
+- 默认端口：`3306`（保持默认即可）
+
+4.3 认证方式
+
+- 推荐：Use Strong Password Encryption
+
+4.4 设置 root 密码
+
+- 设置并记住 root 密码（非常重要）
+
+---
+
+5. 创建 Windows 服务
+
+- 勾选：**Run MySQL as a Windows Service**
+- 服务名默认即可：MySQL80
+
+---
+
+6. 完成安装
+
+点击 **Finish** 完成安装。
+
+---
+
+7. 验证安装是否成功
+
+方法一：命令行
+
+打开 CMD 或 PowerShell：
+
+```bash
+mysql -u root -p
+```
+
+输入密码后进入 MySQL 即表示成功。
+
+---
+
+方法二：MySQL Workbench
+
+打开 Workbench：
+
+- 新建连接
+- Host：127.0.0.1
+- Port：3306
+- User：root
+
+点击连接测试。
+
+---
+
+8. 常见问题
+
+❗ mysql 不是内部命令
+
+解决方法：  
+把 MySQL 的 `bin` 目录加入系统环境变量 PATH，例如：
+
+```
+C:\Program Files\MySQL\MySQL Server 8.0\bin
+```
+
+---
+
+##### 搭建数据库
+
+当 MySQL 安装完成后，你应该可以在终端中以 **root 用户**身份连接到数据库。具体的连接命令会根据你安装的 MySQL 版本而有所不同。
+
+例如，在 MySQL 5.7 版本中，你可以通过输入以下命令进行连接：
+
+```bash
+$ sudo mysql
+mysql>
+```
+
+但如果上述命令无法正常工作，可以尝试下面的命令，并输入你在安装过程中设置的密码：
+
+```bash
+$ $ mysql -u root -p
+Enter password:
+mysql>
+```
+
+连接成功之后，我们首先需要在 MySQL 中创建一个数据库，用于存储本项目的所有数据。
+
+请将以下命令复制并粘贴到 MySQL 命令行（mysql prompt）中，以 UTF8 编码创建一个新的 `snippetbox` 数据库。
+
+```sql
+-- Create a new UTF-8 `snippetbox` database.
+CREATE DATABASE snippetbox CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Switch to using the `snippetbox` database.
+USE snippetbox;
+```
+
+接下来，请复制并执行下面的 SQL 语句，在 `snippetbox` 数据库中创建一个 **`snippets`** 表，用于存储应用程序中的代码片段（text snippets）数据：
+
+```sql
+-- Create a `snippets` table.
+CREATE TABLE snippets (
+	id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	title VARCHAR(100) NOT NULL,
+	content TEXT NOT NULL,
+	created DATETIME NOT NULL,
+	expires DATETIME NOT NULL
+);
+-- Add an index on the created column.
+CREATE INDEX idx_snippets_created ON snippets(created);
+```
+
+`snippets` 表中的每条记录都包含一个整型的 **`id`** 字段，作为该代码片段的**唯一标识符（Unique Identifier）**。
+
+此外，每条记录还包含以下字段：
+
+\- **`title`**：用于存储代码片段的标题
+\- **`content`**：用于存储代码片段的具体内容
+\- **`created`**：记录代码片段的创建时间
+\- **`expires`**：记录代码片段的过期时间
+
+接下来，我们再向 `snippets` 表中插入几条**示例数据（Placeholder Data）**，这些数据将在后续几章中使用。
+
+书中使用的是几首简短的俳句（Haiku）作为代码片段的内容，不过具体内容并不重要，只要能够作为测试数据即可。
+
+```sql
+-- Add some dummy records (which we'll use in the next couple of chapters).
+INSERT INTO snippets (title, content, created, expires) VALUES (
+	'An old silent pond',
+	'An old silent pond...\nA frog jumps into the pond,\nsplash! Silence again.\n\n– Matsuo Bashō',
+	UTC_TIMESTAMP(),
+	DATE_ADD(UTC_TIMESTAMP(), INTERVAL 365 DAY)
+);
+
+INSERT INTO snippets (title, content, created, expires) VALUES (
+	'Over the wintry forest',
+	'Over the wintry\nforest, winds howl in rage\nwith no leaves to blow.\n\n– Natsume Soseki',
+	UTC_TIMESTAMP(),
+	DATE_ADD(UTC_TIMESTAMP(), INTERVAL 365 DAY)
+);
+
+INSERT INTO snippets (title, content, created, expires) VALUES (
+	'First autumn morning',
+	'First autumn morning\nthe mirror I stare into\nshows my father''s face.\n\n– Murakami Kijo',
+	UTC_TIMESTAMP(),
+	DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
+);
+```
+
+##### 创建新用户
+
+从**安全性（Security）**的角度来看，在 Web 应用程序中直接使用 **`root`** 用户连接 MySQL 并不是一种好的做法。
+
+更推荐的做法是创建一个**权限受限的数据库用户（Database User）**，只授予其应用程序实际需要的数据库权限。
+
+因此，在保持 MySQL 命令行（MySQL Prompt）连接的情况下，请执行下面的 SQL 语句，创建一个新的 Web 用户，并仅授予其在当前数据库上的 **`SELECT`** 和 **`INSERT`** 权限。
+
+```sql
+CREATE USER 'web'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON snippetbox.* TO 'web'@'localhost';
+-- Important: Make sure to swap 'pass' with a password of your own choosing.
+ALTER USER 'web'@'localhost' IDENTIFIED BY 'pass';
+```
+
+完成上述操作后，输入 `exit` 命令退出 MySQL 命令行（MySQL Prompt）。
+
+##### 测试新用户
+
+您现在应该能够使用以下命令以 web用户身份连接到 snippetbox数据库。出现提示时，输入您刚刚设置的密码。
+
+```sql
+mysql -D snippetbox -u web -p
+Enter password: 
+
+mysql>
+```
+
+如果权限配置正确，你应该能够正常执行 **`SELECT`** 和 **`INSERT`** 操作；而对于 **`DROP TABLE`**、**`GRANT`** 等超出授权范围的命令，则会执行失败。
+
+```sql
+mysql> SELECT id, title,expires FROM snippets;
++----+------------------------+---------------------+
+| id | title                  | expires             |
++----+------------------------+---------------------+
+|  1 | An old silent pond     | 2027-06-28 10:44:44 |
+|  2 | Over the wintry forest | 2027-06-28 10:48:34 |
+|  3 | First autumn morning   | 2026-07-05 10:50:55 |
++----+------------------------+---------------------+
+3 rows in set (0.00 sec)
+
+mysql> DROP TABLE snippets;
+ERROR 1142 (42000): DROP command denied to user 'web'@'localhost' for table 'snippets'
+```
+
+
+
 #### 4.2. 安装数据库驱动程序
+
+---
+
+为了在 Go Web 应用程序中使用 MySQL，我们需要安装一个**数据库驱动（Database Driver）**。
+
+数据库驱动充当 Go 程序与 MySQL 数据库之间的**桥梁**，负责将 Go 发出的数据库操作转换为 MySQL 能够识别和执行的命令，同时将数据库返回的结果转换为 Go 程序可以处理的数据。
+
+Go 官方 Wiki 提供了多种数据库驱动可供选择，而本项目将使用目前应用最广泛的 **`go-sql-driver/mysql`** 驱动。
+
+下载该驱动，请进入项目根目录，并执行下面的 `go get` 命令：
+
+```bash
+$ go get github.com/go-sql-driver/mysql@v1
+go: downloading github.com/go-sql-driver/mysql v1.6.0
+```
+
+请注意，这里我们在包路径后面添加了 **`@v1`** 后缀，表示希望下载该依赖**主版本号（Major Version）为 1 的最新版本**。
+
+本书编写时使用的版本是 **`v1.6.0`**，但你实际下载的版本可能是 **`v1.6.1`**、**`v1.7.0`** 或其他 `v1.x.x` 版本，这都是正常的。
+
+这是因为 `go-sql-driver/mysql` 遵循**语义化版本（Semantic Versioning，SemVer）**规范进行版本管理，因此所有 **`v1.x.x`** 版本都能够与本书中的代码保持兼容。
+
+另外，如果你希望**始终下载最新版本**，而不限制主版本号，只需省略 `@version` 后缀即可，例如：
+
+```bash
+$ go get github.com/go-sql-driver/mysql
+go: added filippo.io/edwards25519 v1.2.0
+go: added github.com/go-sql-driver/mysql v1.10.0
+```
+
+如果希望下载某个**指定版本**的依赖包，可以在包路径后面指定完整的版本号。例如：
+
+```bash
+$ go get github.com/go-sql-driver/mysql@v1.0.3
+```
+
+安装完成数据库驱动后，打开项目中的 **`go.mod`** 文件（这是我们在本书开始时创建的 Go 模块文件）。
+
+你应该会看到新增了一条 **`require`** 声明，其中包含：
+
+\- 下载的依赖包路径（Package Path）
+\- 实际下载的精确版本号（Exact Version）
+
+例如，它的内容大致如下：
+
+```
+File: go.mod
+```
+
+```go
+module github.com/<your-github-name>/snippetbox
+
+go 1.26.1
+
+require (
+	filippo.io/edwards25519 v1.2.0 // indirect
+	github.com/go-sql-driver/mysql v1.10.0 // indirect
+)
+```
+
+此外，你还会发现，在项目根目录下新增了一个名为 **`go.sum`** 的文件。
+
+`go.sum` 文件由 Go 工具自动生成，用于记录项目依赖包及其版本对应的**校验值（Checksum）**。
+
+当项目下载或更新依赖时，Go 会根据 `go.sum` 中记录的校验值验证依赖包的完整性，确保下载的内容没有被篡改，从而提高依赖管理的安全性和可靠性。
+
+简单来说：
+
+\- **`go.mod`**：记录项目依赖了哪些模块，以及所需的版本。
+\- **`go.sum`**：记录这些模块对应的校验值，用于保证依赖包的完整性和一致性。
+
+![image-20260628203902347](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260628203902347.png)
+
+`go.sum` 文件中保存的是项目依赖包的**加密校验和（Cryptographic Checksums）**。
+
+这些校验和用于唯一标识每个依赖包的内容。当 Go 下载依赖时，会根据这些校验值验证文件是否完整、是否被篡改，从而保证项目依赖的安全性和一致性。
+
+打开 `go.sum` 文件后，你应该会看到类似下面这样的内容：
+
+```
+File: go.sum
+```
+
+```go
+github.com/go-sql-driver/mysql v1.10.0 h1:Q+1LV8DkHJvSYAdR83XzuhDaTykuDx0l6fkXxoWCWfw=
+github.com/go-sql-driver/mysql v1.10.0/go.mod h1:M+cqaI7+xxXGG9swrdeUIoPG3Y3KCkF0pZej+SK+nWk=
+```
+
+与 `go.mod` 文件不同，`go.sum` 并不是设计给开发者手动编辑的，一般情况下你也不需要打开它。
+
+不过，它具有两个非常重要的作用：
+
+- 如果你在终端中运行 `go mod verify` 命令，它会验证你本地已下载依赖包的校验和（checksum）是否与 `go.sum` 文件中的记录一致，从而确保这些依赖包没有被篡改。
+- 如果其他开发者需要下载项目的所有依赖（可以通过运行 `go mod download` 完成），那么当下载到的依赖与 `go.sum` 文件中记录的校验和不一致时，Go 会报错提示。
+
+##### 附加信息
+
+**更新包**
+
+当一个依赖包被下载并添加到 `go.mod` 文件后，该依赖包及其版本就会被**固定（fixed）**下来。
+
+不过，在今后的开发过程中，你可能会因为各种原因希望升级到该依赖包的更新版本。
+
+如果要将某个依赖升级到**最新的次版本（Minor）**或**补丁版本（Patch）**，只需在执行 `go get` 命令时添加 `-u` 参数即可，例如：
+
+```bash
+$ go get -u github.com/foo/bar
+```
+
+或者，如果你希望将依赖升级到**指定版本**，可以使用相同的命令，并在包路径后添加对应的 `@version` 后缀。例如：
+
+```bash
+$ go get -u github.com/foo/bar@v2.0.0
+```
+
+**移除未使用的包**
+
+有时候，你可能使用 `go get` 下载了某个依赖包，但在后续开发过程中发现实际上已经不再需要它。
+
+遇到这种情况时，你有两种处理方式。
+
+第一种方式是执行 `go get` 命令，并在包路径后添加 `@none` 后缀，以移除该依赖。例如：
+
+```bash
+$ go get github.com/foo/bar@none
+```
+
+另一种方式是，如果你已经从代码中移除了对该依赖包的所有引用，那么可以执行 `go mod tidy` 命令。
+
+该命令会自动清理项目依赖，将 `go.mod` 和 `go.sum` 文件中所有不再使用的依赖包移除。
+
+```bash
+$ go mod tidy -v
+```
 
 #### 4.3. 模块和可重现的构建
 
