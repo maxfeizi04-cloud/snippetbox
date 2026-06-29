@@ -24,13 +24,13 @@
 
 ---
 
-​	在本书中，我们将构建一个名为 Snippetbox 的 Web 应用程序，它可以让人们粘贴和共享文本片段——有点像 Pastebin 或 GitHub 的 Gists。在构建结束时，它看起来有点像这样：
+在本书中，我们将构建一个名为 Snippetbox 的 Web 应用程序，它可以让人们粘贴和共享文本片段——有点像 Pastebin 或 GitHub 的 Gists。在构建结束时，它看起来有点像这样：
 
 ![image-20260625165707082](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260625165707082.png)
 
-​	我们的应用程序一开始非常简单，只有一个网页。然后在每一章中，我们将逐步构建它，直到用户能够通过该应用程序保存和查看片段。这将带我们了解如何构建项目、路由请求、使用数据库、处理表单和安全地显示动态数据等主题。
+我们的应用程序一开始非常简单，只有一个网页。然后在每一章中，我们将逐步构建它，直到用户能够通过该应用程序保存和查看片段。这将带我们了解如何构建项目、路由请求、使用数据库、处理表单和安全地显示动态数据等主题。
 
-​	然后在本书的后面，我们将添加用户帐户，并限制应用程序，以便只有注册用户才能创建片段。这将带我们了解更高级的主题，例如配置 HTTPS 服务器、会话管理、用户身份验证和中间件。
+然后在本书的后面，我们将添加用户帐户，并限制应用程序，以便只有注册用户才能创建片段。这将带我们了解更高级的主题，例如配置 HTTPS 服务器、会话管理、用户身份验证和中间件。
 
 
 
@@ -38,7 +38,7 @@
 
 ---
 
-​	在本书中，代码块显示为银色背景，如下所示。如果代码特别长，不相关的部分可以用省略号代替。为了便于跟进，大多数代码块的顶部还有一个标题栏，指示我们正在处理的文件的名称。
+在本书中，代码块显示为银色背景，如下所示。如果代码特别长，不相关的部分可以用省略号代替。为了便于跟进，大多数代码块的顶部还有一个标题栏，指示我们正在处理的文件的名称。
 
 ```
 file: hello.go
@@ -56,16 +56,16 @@ func sayHello() {
 >
 > 提示：如果您跟随应用程序构建，我建议使用本书的HTML版本，而不是PDF或EPUB版本。HTML版本适用于所有浏览器，如果您想直接从书中复制和粘贴代码，则保留代码块的适当格式。
 
-​	终端（命令行）指令以银色背景显示并以美元符号开头。这些命令应该适用于任何基于 Unix 的操作系统，包括 Mac OSX 和 Linux。示例输出以银色显示在命令下方，如下所示：
+终端（命令行）指令以银色背景显示并以美元符号开头。这些命令应该适用于任何基于 Unix 的操作系统，包括 Mac OSX 和 Linux。示例输出以银色显示在命令下方，如下所示：
 
 ```bash
 $ echo "Hello world!"
 Hello world!
 ```
 
-​	如果您使用的是 Windows，则应将命令替换为 DOS 等效命令或通过普通 Windows GUI 执行操作。
+如果您使用的是 Windows，则应将命令替换为 DOS 等效命令或通过普通 Windows GUI 执行操作。
 
-​	本书的一些章节以附加信息部分结束。这些部分包含与我们的应用构建无关但仍然重要（有时只是有趣）的信息。如果您对 Go 还不太熟悉，您可能需要跳过这些部分并稍后再回头看。
+本书的一些章节以附加信息部分结束。这些部分包含与我们的应用构建无关但仍然重要（有时只是有趣）的信息。如果您对 Go 还不太熟悉，您可能需要跳过这些部分并稍后再回头看。
 
 
 
@@ -73,11 +73,11 @@ Hello world!
 
 ---
 
-​	嘿，我是 Alex Edwards，全栈网络开发人员和作家。我住在奥地利因斯布鲁克附近。
+嘿，我是 Alex Edwards，全栈网络开发人员和作家。我住在奥地利因斯布鲁克附近。
 
-​	我使用 Go 已经 8 年多了，为我自己和商业客户构建生产应用程序，并帮助世界各地的人们提高他们的 Go 技能。
+我使用 Go 已经 8 年多了，为我自己和商业客户构建生产应用程序，并帮助世界各地的人们提高他们的 Go 技能。
 
-​	你可以在我的博客上看到更多我的文章（我在那里发布详细的教程），在 GitHub 上看到我的一些开源作品，你也可以在 Instagram 和 Twitter 上关注我。
+你可以在我的博客上看到更多我的文章（我在那里发布详细的教程），在 GitHub 上看到我的一些开源作品，你也可以在 Instagram 和 Twitter 上关注我。
 
 
 
@@ -85,13 +85,13 @@ Hello world!
 
 ---
 
-​	Let's Go：学习使用 Go 构建专业的 Web 应用程序。版权所有 © 2022 亚历克斯·爱德华兹。
+Let's Go：学习使用 Go 构建专业的 Web 应用程序。版权所有 © 2022 亚历克斯·爱德华兹。
 
-​	最后更新时间为 2022-08-04 11:31:25 UTC。版本 2.19.0。
+最后更新时间为 2022-08-04 11:31:25 UTC。版本 2.19.0。
 
-​	Go gopher 由 Renee French 设计，并在 Creative Commons 3.0 Attributions 许可下使用。 Cover gopher 改编自 Egon Elbre 的矢量。
+Go gopher 由 Renee French 设计，并在 Creative Commons 3.0 Attributions 许可下使用。 Cover gopher 改编自 Egon Elbre 的矢量。
 
-​	本书中提供的信息仅供一般参考。虽然作者和出版商已尽一切努力确保本书中信息的准确性在出版时是正确的，但对于完整性、准确性、可靠性、适用性或可用性，我们不作任何明示或暗示的陈述或保证出于任何目的而使用本书中包含的信息、产品、服务或相关图形。使用此信息的风险由您自行承担。
+本书中提供的信息仅供一般参考。虽然作者和出版商已尽一切努力确保本书中信息的准确性在出版时是正确的，但对于完整性、准确性、可靠性、适用性或可用性，我们不作任何明示或暗示的陈述或保证出于任何目的而使用本书中包含的信息、产品、服务或相关图形。使用此信息的风险由您自行承担。
 
 
 
@@ -101,17 +101,17 @@ Hello world!
 
 **背景知识**
 
-​	这本书是为刚接触 Go 的人设计的，但如果你先对 Go 的语法有一个大致的了解，你可能会发现它更有趣。如果你发现自己在语法上苦苦挣扎，Karl Seguin 的 Little Book of Go 是一个很棒的教程，或者如果你想要更具交互性的东西，我建议你完成 Go 之旅。
+这本书是为刚接触 Go 的人设计的，但如果你先对 Go 的语法有一个大致的了解，你可能会发现它更有趣。如果你发现自己在语法上苦苦挣扎，Karl Seguin 的 Little Book of Go 是一个很棒的教程，或者如果你想要更具交互性的东西，我建议你完成 Go 之旅。
 
-​	我还假设您对 HTML/CSS 和 SQL 有（非常）基本的了解，并且对使用终端（或 Windows 用户的命令行）有一定的了解。如果您以前用任何其他语言构建过 Web 应用程序——无论是 Ruby、Python、PHP 还是 C#——那么这本书应该非常适合您。
+我还假设您对 HTML/CSS 和 SQL 有（非常）基本的了解，并且对使用终端（或 Windows 用户的命令行）有一定的了解。如果您以前用任何其他语言构建过 Web 应用程序——无论是 Ruby、Python、PHP 还是 C#——那么这本书应该非常适合您。
 
 **其他软件**
 
-​	如果您想完全按照说明进行操作，则应确保您的计算机上还有其他一些软件可用。他们是：
+如果您想完全按照说明进行操作，则应确保您的计算机上还有其他一些软件可用。他们是：
 
-​	用于处理来自终端的 HTTP 请求和响应的 curl 工具。在 MacOS 和 Linux 机器上，它应该预先安装或在您的软件存储库中可用。否则，您可以从此处下载最新版本。
+用于处理来自终端的 HTTP 请求和响应的 curl 工具。在 MacOS 和 Linux 机器上，它应该预先安装或在您的软件存储库中可用。否则，您可以从此处下载最新版本。
 
-​	具有良好开发工具的 Web 浏览器。我将在本书中使用 Firefox，但 Chromium、Chrome 或 Microsoft Edge 也可以。
+具有良好开发工具的 Web 浏览器。我将在本书中使用 Firefox，但 Chromium、Chrome 或 Microsoft Edge 也可以。
 
 
 
@@ -121,7 +121,7 @@ Hello world!
 
 
 
-​	好了，让我们开始吧！在本书的第一部分中，我们将为我们的项目奠定基础，并解释您在构建应用程序的其余部分时需要了解的主要原则。
+好了，让我们开始吧！在本书的第一部分中，我们将为我们的项目奠定基础，并解释您在构建应用程序的其余部分时需要了解的主要原则。
 
 您将学习如何：
 
@@ -142,16 +142,16 @@ Hello world!
 
 
 
-​	本书中的信息适用于 Go 的最新主要版本（1.19 版），如果您想在构建应用程序的同时进行编码，则应该安装它。
+本书中的信息适用于 Go 的最新主要版本（1.19 版），如果您想在构建应用程序的同时进行编码，则应该安装它。
 
-​	如果你已经安装了 Go，你可以使用 go version命令从你的终端检查版本号。输出应与此类似：
+如果你已经安装了 Go，你可以使用 go version命令从你的终端检查版本号。输出应与此类似：
 
 ```bash
 $ go version
 go version go1.19 linux/amd64
 ```
 
-​	如果您需要升级您的 Go 版本——或者从头开始安装 Go——那么请现在就开始吧。可以在此处找到针对不同操作系统的详细说明：
+如果您需要升级您的 Go 版本——或者从头开始安装 Go——那么请现在就开始吧。可以在此处找到针对不同操作系统的详细说明：
 
 - 删除旧版本的 Go
 - 在 Mac OS X 上安装 Go
@@ -166,9 +166,9 @@ go version go1.19 linux/amd64
 
 
 
-​	在我们编写任何代码之前，您需要在您的计算机上创建一个 snippetbox 目录作为该项目的顶级“家”。我们在整本书中编写的所有 Go 代码以及其他项目特定的资产（如 HTML 模板和 CSS 文件）都将保存在这里。
+在我们编写任何代码之前，您需要在您的计算机上创建一个 snippetbox 目录作为该项目的顶级“家”。我们在整本书中编写的所有 Go 代码以及其他项目特定的资产（如 HTML 模板和 CSS 文件）都将保存在这里。
 
-​	因此，如果您正在跟随，请打开您的终端并在您计算机上的任意位置创建一个名为 snippetbox的新项目目录。我将在 $HOME/code下找到我的项目目录，但您可以根据需要选择其他位置。
+因此，如果您正在跟随，请打开您的终端并在您计算机上的任意位置创建一个名为 snippetbox的新项目目录。我将在 $HOME/code下找到我的项目目录，但您可以根据需要选择其他位置。
 
 ```bash
 $ mkdir -p $HOME/code/snippetbox
@@ -176,17 +176,17 @@ $ mkdir -p $HOME/code/snippetbox
 
 ##### 创建模块
 
-​	接下来您需要做的是为您的项目选择一个模块路径。
+接下来您需要做的是为您的项目选择一个模块路径。
 
-​	如果您还不熟悉 Go 模块，您可以将模块路径视为基本上是项目的规范名称或标识符。
+如果您还不熟悉 Go 模块，您可以将模块路径视为基本上是项目的规范名称或标识符。
 
-​	您几乎可以选择任何字符串作为您的模块路径，但重要的是要专注于唯一性。为了避免未来与其他人的项目或标准库可能发生的导入冲突，您需要选择一个全局唯一且不太可能被其他东西使用的模块路径。在 Go 社区中，常见的约定是将您的模块路径基于您拥有的 URL。
+您几乎可以选择任何字符串作为您的模块路径，但重要的是要专注于唯一性。为了避免未来与其他人的项目或标准库可能发生的导入冲突，您需要选择一个全局唯一且不太可能被其他东西使用的模块路径。在 Go 社区中，常见的约定是将您的模块路径基于您拥有的 URL。
 
-​	在我的例子中，这个项目的一个清晰、简洁且不太可能被其他任何东西使用的模块路径是 snippetbox.alexedwards.net，我将在本书的其余部分使用它。如果可能的话，您应该将其换成您独有的东西。
+在我的例子中，这个项目的一个清晰、简洁且不太可能被其他任何东西使用的模块路径是 snippetbox.alexedwards.net，我将在本书的其余部分使用它。如果可能的话，您应该将其换成您独有的东西。
 
-​	现在我们已经确定了一个唯一的模块路径，接下来我们需要做的就是将我们的项目目录变成一个模块。
+现在我们已经确定了一个唯一的模块路径，接下来我们需要做的就是将我们的项目目录变成一个模块。
 
-​	确保您位于目录的根目录中，然后运行 go mod init命令——将您的模块路径作为参数传递，如下所示：
+确保您位于目录的根目录中，然后运行 go mod init命令——将您的模块路径作为参数传递，如下所示：
 
 ```bash
 $ cd $HOME/code/snippetbox
@@ -197,7 +197,7 @@ $ go mod edit -module github.com/<you-github-name>/snippetbox
 
 ![image-20260625173521167](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260625173521167.png)
 
-​	目前这个文件中没有太多内容，如果你在你的文本编辑器中打开它，它应该看起来像这样（但最好使用你自己独特的模块路径）：
+目前这个文件中没有太多内容，如果你在你的文本编辑器中打开它，它应该看起来像这样（但最好使用你自己独特的模块路径）：
 
 ```
 File: go.mod
@@ -209,11 +209,11 @@ module github.com/<you-github-name>/snippetbox
 go 1.26.1
 ```
 
-​	我们将在本书后面更详细地讨论模块，但现在只要知道当项目目录的根目录中有一个有效的 go.mod文件时，您的项目就是一个模块就足够了。将您的项目设置为模块有很多优势——包括更容易管理第三方依赖项、避免供应链攻击，以及确保您的应用程序在未来的可重现构建。
+我们将在本书后面更详细地讨论模块，但现在只要知道当项目目录的根目录中有一个有效的 go.mod文件时，您的项目就是一个模块就足够了。将您的项目设置为模块有很多优势——包括更容易管理第三方依赖项、避免供应链攻击，以及确保您的应用程序在未来的可重现构建。
 
 ##### Hello world!
 
-​	在我们继续之前，让我们快速检查一下一切设置是否正确。继续在您的项目目录中创建一个新的 main.go，其中包含以下代码：
+在我们继续之前，让我们快速检查一下一切设置是否正确。继续在您的项目目录中创建一个新的 main.go，其中包含以下代码：
 
 ```bash
 $ touch main.go
@@ -233,7 +233,7 @@ func main() {
 }
 ```
 
-​	保存此文件，然后在终端中使用 go run .命令编译并执行当前目录中的代码。一切顺利，您将看到以下输出：
+保存此文件，然后在终端中使用 go run .命令编译并执行当前目录中的代码。一切顺利，您将看到以下输出：
 
 ```bash
 go run .
@@ -242,9 +242,9 @@ Hello world!
 
 ##### 附加信息
 
-​	如果你正在创建一个可以被其他人和程序下载和使用的项目，那么你的模块路径最好等于代码可以从中下载的位置。
+如果你正在创建一个可以被其他人和程序下载和使用的项目，那么你的模块路径最好等于代码可以从中下载的位置。
 
-​	例如，如果你的包托管在 https://github.com/foo/bar 上，则项目的模块路径应该是 github.com/foo/bar。
+例如，如果你的包托管在 https://github.com/foo/bar 上，则项目的模块路径应该是 github.com/foo/bar。
 
 
 
@@ -252,15 +252,15 @@ Hello world!
 
 ---
 
-​	现在一切都已正确设置，让我们对我们的 Web 应用程序进行第一次迭代。我们将从三个绝对要素开始：
+现在一切都已正确设置，让我们对我们的 Web 应用程序进行第一次迭代。我们将从三个绝对要素开始：
 
-​	我们首先需要的是处理程序。如果您来自 MVC 背景，您可以将处理程序视为有点像控制器。他们负责执行您的应用程序逻辑并编写 HTTP 响应标头和正文。
+我们首先需要的是处理程序。如果您来自 MVC 背景，您可以将处理程序视为有点像控制器。他们负责执行您的应用程序逻辑并编写 HTTP 响应标头和正文。
 
-​	第二个组件是路由器（或 Go 术语中的 servemux）。这会存储应用程序的 URL 模式与相应处理程序之间的映射。通常，您的应用程序有一个包含所有路由的 servemux。
+第二个组件是路由器（或 Go 术语中的 servemux）。这会存储应用程序的 URL 模式与相应处理程序之间的映射。通常，您的应用程序有一个包含所有路由的 servemux。
 
-​	我们最不需要的是网络服务器。 Go 的一大优点是您可以建立一个 Web 服务器并监听传入的请求，作为应用程序本身的一部分。您不需要像 Nginx 或 Apache 这样的外部第三方服务器。
+我们最不需要的是网络服务器。 Go 的一大优点是您可以建立一个 Web 服务器并监听传入的请求，作为应用程序本身的一部分。您不需要像 Nginx 或 Apache 这样的外部第三方服务器。
 
-​	让我们将这些组件放在 main.go文件中以制作一个可用的应用程序。
+让我们将这些组件放在 main.go文件中以制作一个可用的应用程序。
 
 ```go
 package main
@@ -293,38 +293,38 @@ func main() {
 
 > [!NOTe]
 >
-> ​	home 处理函数只是一个带有两个参数的常规 Go 函数。http.ResponseWriter 参数提供了组装 HTTP 响应并将其发送给用户的方法，而 *http.Request 参数是指向结构体的指针，该结构体保存有关当前请求的信息（例如 HTTP 方法和正在请求的 URL）。我们将在本书中逐渐讲解这些参数，并演示如何使用它们。
+> home 处理函数只是一个带有两个参数的常规 Go 函数。http.ResponseWriter 参数提供了组装 HTTP 响应并将其发送给用户的方法，而 *http.Request 参数是指向结构体的指针，该结构体保存有关当前请求的信息（例如 HTTP 方法和正在请求的 URL）。我们将在本书中逐渐讲解这些参数，并演示如何使用它们。
 
-​	当你运行这段代码时，它应该会启动一个 Web 服务器，监听你本地机器的 4000 端口。每次服务器收到一个新的 HTTP 请求时，它会将请求传递给 servemux，然后 servemux 将检查 URL 路径并将请求分派给匹配的处理程序。
+当你运行这段代码时，它应该会启动一个 Web 服务器，监听你本地机器的 4000 端口。每次服务器收到一个新的 HTTP 请求时，它会将请求传递给 servemux，然后 servemux 将检查 URL 路径并将请求分派给匹配的处理程序。
 
-​	让我们试一试。保存您的 main.go文件，然后尝试使用 go run命令从您的终端运行它。
+让我们试一试。保存您的 main.go文件，然后尝试使用 go run命令从您的终端运行它。
 
 ```bash
 PS D:\code\snippetbox> go run .
 2026/06/25 18:02:10 Starting server :4000
 ```
 
-​	在服务器运行时，打开网络浏览器并尝试访问 http://localhost:4000。如果一切都按计划进行，您应该会看到一个如下所示的页面：
+在服务器运行时，打开网络浏览器并尝试访问 http://localhost:4000。如果一切都按计划进行，您应该会看到一个如下所示的页面：
 
 ![image-20260625180324048](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260625180324048.png)
 
 > [!CAUTION]
 >
-> ​	在我们继续之前，我应该解释一下 Go 的 servemux 将 URL 模式 "/" 视为万能匹配。因此，目前我们服务器上的所有 HTTP 请求都将由 home 函数处理，而不管它们的 URL 路径如何。例如，你可以访问不同的URL路径，如 http://localhost:4000/foo ，但你将收到完全相同的响应。
+> 在我们继续之前，我应该解释一下 Go 的 servemux 将 URL 模式 "/" 视为万能匹配。因此，目前我们服务器上的所有 HTTP 请求都将由 home 函数处理，而不管它们的 URL 路径如何。例如，你可以访问不同的URL路径，如 http://localhost:4000/foo ，但你将收到完全相同的响应。
 
-​	如果您返回终端窗口，可以通过按键盘上的 Ctrl+c来停止服务器。
+如果您返回终端窗口，可以通过按键盘上的 Ctrl+c来停止服务器。
 
 ##### 网络地址
 
-​	您传递给 http.ListenAndServe() 的 TCP 网络地址应采用 "host:port" 格式。如果您省略主机（就像我们对 ":4000" 所做的那样），那么服务器将监听您计算机的所有可用网络接口。通常，如果您的计算机有多个网络接口并且您只想监听其中一个，则只需在地址中指定一个主机即可。
+您传递给 http.ListenAndServe() 的 TCP 网络地址应采用 "host:port" 格式。如果您省略主机（就像我们对 ":4000" 所做的那样），那么服务器将监听您计算机的所有可用网络接口。通常，如果您的计算机有多个网络接口并且您只想监听其中一个，则只需在地址中指定一个主机即可。
 
-​	在其他 Go 项目或文档中，您有时可能会看到使用 ":http" 或 ":http-alt" 之类的命名端口而不是数字编写的网络地址。如果您使用命名端口，那么 Go 将在启动服务器时尝试从您的 /etc/services文件中查找相关端口号，或者如果找不到匹配项将返回错误。
+在其他 Go 项目或文档中，您有时可能会看到使用 ":http" 或 ":http-alt" 之类的命名端口而不是数字编写的网络地址。如果您使用命名端口，那么 Go 将在启动服务器时尝试从您的 /etc/services文件中查找相关端口号，或者如果找不到匹配项将返回错误。
 
 ##### 使用 Go 运行
 
-​	在开发过程中，go run 命令是测试代码的便捷方式。它本质上是一种编译代码的快捷方式，在 /tmp目录中创建可执行二进制文件，然后一步运行该二进制文件。
+在开发过程中，go run 命令是测试代码的便捷方式。它本质上是一种编译代码的快捷方式，在 /tmp目录中创建可执行二进制文件，然后一步运行该二进制文件。
 
-​	它接受一个以空格分隔的 .go 文件列表、特定包的路径（其中.符号表示当前目录）或完整的模块路径。对于我们的应用程序，目前以下三个命令是等效的：
+它接受一个以空格分隔的 .go 文件列表、特定包的路径（其中.符号表示当前目录）或完整的模块路径。对于我们的应用程序，目前以下三个命令是等效的：
 
 ```bash
 $ go run main.go
@@ -338,7 +338,7 @@ $ go run github.com/<you-github-name>/snippetbox
 
 ---
 
-​	只有一个路由的 Web 应用程序不是很令人兴奋……或有用！让我们添加更多的路由，以便应用程序开始像这样成形：
+只有一个路由的 Web 应用程序不是很令人兴奋……或有用！让我们添加更多的路由，以便应用程序开始像这样成形：
 
 | URL Pattern     | Handler       | Action                                   |
 | --------------- | ------------- | ---------------------------------------- |
@@ -413,9 +413,9 @@ http://localhost:4000/snippet/create
 
 Go 的 servemux 支持两种不同类型的 URL 模式：固定路径和子树路径。固定路径不以尾部斜杠结尾，而子树路径确实以尾部斜杠结尾。
 
-​	我们的两个新模式——"/snippet" 和 "/snippet/create" —— 都是固定路径的例子。在 Go 的 servemux 中，只有当请求 URL 路径与固定路径完全匹配时，才会匹配（并调用相应的处理程序）这样的固定路径模式。
+我们的两个新模式——"/snippet" 和 "/snippet/create" —— 都是固定路径的例子。在 Go 的 servemux 中，只有当请求 URL 路径与固定路径完全匹配时，才会匹配（并调用相应的处理程序）这样的固定路径模式。
 
-​	相反，我们的模式 "/" 是子树路径的示例（因为它以斜杠结尾）。另一个例子是 "/static/"。只要请求 URL 路径的开头与子树路径匹配，就会匹配子树路径模式（并调用相应的处理程序）。如果它有助于您的理解，您可以认为子树路径的行为有点像它们末尾有一个通配符，例如 **"/****" 或 "/static/**"。
+相反，我们的模式 "/" 是子树路径的示例（因为它以斜杠结尾）。另一个例子是 "/static/"。只要请求 URL 路径的开头与子树路径匹配，就会匹配子树路径模式（并调用相应的处理程序）。如果它有助于您的理解，您可以认为子树路径的行为有点像它们末尾有一个通配符，例如 **"/****" 或 "/static/**"。
 
 这有助于解释为什么 "/"模式表现得像一个万能的。该模式本质上意味着匹配一个斜线，然后是任何东西（或什么都没有）。
 
@@ -473,7 +473,7 @@ func main() {
 }
 ```
 
-​	在幕后，这些函数将它们的路由与一个叫做 DefaultServeMux 的东西注册关联起来。这没什么特别之处——它只是我们已经使用过的常规 servemux，但其默认初始化并存储在 net/http 全局变量中。下面是Go源代码中相关的一行：
+在幕后，这些函数将它们的路由与一个叫做 DefaultServeMux 的东西注册关联起来。这没什么特别之处——它只是我们已经使用过的常规 servemux，但其默认初始化并存储在 net/http 全局变量中。下面是Go源代码中相关的一行：
 
 ```go
 var DefaultServeMux = NewServeMux()
@@ -481,23 +481,23 @@ var DefaultServeMux = NewServeMux()
 
 尽管这种方法可以使您的代码稍微短一些，但我不建议将其用于生产应用程序。
 
-​	因为 DefaultServeMux 是一个全局变量，任何包都可以访问它并注册路由——包括您的应用程序导入的任何第三方包。如果其中一个第三方包被攻击，它们可以使用 DefaultServeMux 将恶意处理程序公开到网络中。
+因为 DefaultServeMux 是一个全局变量，任何包都可以访问它并注册路由——包括您的应用程序导入的任何第三方包。如果其中一个第三方包被攻击，它们可以使用 DefaultServeMux 将恶意处理程序公开到网络中。
 
-​	因此，出于安全考虑，通常最好避免使用 DefaultServeMux 和相应的辅助函数。改为使用自己的本地范围servemux，就像我们迄今在这个项目中一直在做的那样。
+因此，出于安全考虑，通常最好避免使用 DefaultServeMux 和相应的辅助函数。改为使用自己的本地范围servemux，就像我们迄今在这个项目中一直在做的那样。
 
 ##### 附加信息
 
 **Servemux 特性和特点**
 
-​	在 Go 的 servemux 中，较长的 URL 模式总是优先于较短的。因此，如果 servemux 包含多个匹配请求的模式，它总是会将请求分派给最长模式对应的处理程序。这有一个很好的副作用，您可以按任何顺序注册模式，并且不会改变 servemux 的行为方式。
+在 Go 的 servemux 中，较长的 URL 模式总是优先于较短的。因此，如果 servemux 包含多个匹配请求的模式，它总是会将请求分派给最长模式对应的处理程序。这有一个很好的副作用，您可以按任何顺序注册模式，并且不会改变 servemux 的行为方式。
 
-​	请求 URL 路径会自动清理。如果请求路径包含任何或元素或重复的斜杠，用户将自动重定向到等效的干净 URL。例如，如果用户向 /foo/bar/..//baz 发出请求，他们将自动向 /foo/baz 发送 301 Permanent Redirect。
+请求 URL 路径会自动清理。如果请求路径包含任何或元素或重复的斜杠，用户将自动重定向到等效的干净 URL。例如，如果用户向 /foo/bar/..//baz 发出请求，他们将自动向 /foo/baz 发送 301 Permanent Redirect。
 
-​	如果一个子树路径已经被注册并且收到了一个没有尾部斜杠的子树路径请求，那么用户将自动发送一个 301 Permanent Redirect 到带有斜杠的子树路径。例如，如果您注册了子树路径 /foo/，那么任何对 /foo的请求都将被重定向到 /foo/。
+如果一个子树路径已经被注册并且收到了一个没有尾部斜杠的子树路径请求，那么用户将自动发送一个 301 Permanent Redirect 到带有斜杠的子树路径。例如，如果您注册了子树路径 /foo/，那么任何对 /foo的请求都将被重定向到 /foo/。
 
 **主机名匹配**
 
-​	可以在您的 URL 模式中包含主机名。当您希望将所有 HTTP 请求重定向到规范 URL，或者如果您的应用程序充当多个站点或服务的后端时，这会很有用。例如：
+可以在您的 URL 模式中包含主机名。当您希望将所有 HTTP 请求重定向到规范 URL，或者如果您的应用程序充当多个站点或服务的后端时，这会很有用。例如：
 
 ```go
 mux := http.NewServeMux()
@@ -506,13 +506,13 @@ mux.HandleFunc("bar.example.org/", barHandler)
 mux.HandleFunc("/baz", bazHandler)
 ```
 
-​	当谈到模式匹配时，将首先检查任何特定于主机的模式，如果匹配，请求将被分派到相应的处理程序。只有当没有找到特定于主机的匹配项时，才会检查非特定于主机的模式。
+当谈到模式匹配时，将首先检查任何特定于主机的模式，如果匹配，请求将被分派到相应的处理程序。只有当没有找到特定于主机的匹配项时，才会检查非特定于主机的模式。
 
 **RESTful 路由呢？**
 
-​	必须承认，Go 的 servemux 提供的路由功能相当轻量级。它不支持基于请求方法的路由，不支持带有变量的干净URL，并且不支持基于正则表达式的模式。如果您曾经使用过Rails、Django 或 Laravel 等框架，可能会觉得有些受限制了...甚至感到惊讶！
+必须承认，Go 的 servemux 提供的路由功能相当轻量级。它不支持基于请求方法的路由，不支持带有变量的干净URL，并且不支持基于正则表达式的模式。如果您曾经使用过Rails、Django 或 Laravel 等框架，可能会觉得有些受限制了...甚至感到惊讶！
 
-​	但是不要让那些让你失望。事实上，Go 的 servemux 仍然可以让你走得更远，并且对于许多应用程序来说已经足够了。在您需要更多的时候，可以使用大量的第三方路由器来代替 Go 的 servemux。我们将在本书后面介绍一些流行的选项。
+但是不要让那些让你失望。事实上，Go 的 servemux 仍然可以让你走得更远，并且对于许多应用程序来说已经足够了。在您需要更多的时候，可以使用大量的第三方路由器来代替 Go 的 servemux。我们将在本书后面介绍一些流行的选项。
 
 
 
@@ -528,13 +528,13 @@ mux.HandleFunc("/baz", bazHandler)
 | ANY    | /snippet        | showSnippet   | Display a specific snippet |
 | POST   | /snippet/create | createSnippet | Create a new snippet       |
 
-​	进行这种更改非常重要，因为在应用程序构建的后期，对/snippet/create路由的请求将导致在数据库中创建一个新的片段。在数据库中创建新片段是一项非幂等性操作，它会改变我们服务器的状态，因此我们应该遵循HTTP的良好实践，并将此路由限制为仅以POST请求执行。
+进行这种更改非常重要，因为在应用程序构建的后期，对/snippet/create路由的请求将导致在数据库中创建一个新的片段。在数据库中创建新片段是一项非幂等性操作，它会改变我们服务器的状态，因此我们应该遵循HTTP的良好实践，并将此路由限制为仅以POST请求执行。
 
-​	不过，我现在要专门讲这个，主要是因为它是引出 HTTP 响应头话题的好契机，顺便也能说明如何定制这些响应头。
+不过，我现在要专门讲这个，主要是因为它是引出 HTTP 响应头话题的好契机，顺便也能说明如何定制这些响应头。
 
 ##### HTTP 状态代码
 
-​	首先更新 `snippetCreate` 处理函数，使其在请求方法非 POST 时返回 **405（Method Not Allowed）** 状态码。为此需使用 `w.WriteHeader()` 方法，示例如下：
+首先更新 `snippetCreate` 处理函数，使其在请求方法非 POST 时返回 **405（Method Not Allowed）** 状态码。为此需使用 `w.WriteHeader()` 方法，示例如下：
 
 ```
 File: main.go
@@ -557,15 +557,15 @@ func createSnippet(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-​	尽管此更改看起来很简单，但我应该解释一些细微差别：
+尽管此更改看起来很简单，但我应该解释一些细微差别：
 
-​	每次响应只能调用 w.WriteHeader() 一次，状态码写入后便无法更改。如果您尝试第二次调用 w.WriteHeader()，Go 将记录一条警告消息。
+每次响应只能调用 w.WriteHeader() 一次，状态码写入后便无法更改。如果您尝试第二次调用 w.WriteHeader()，Go 将记录一条警告消息。
 
-​	如果您没有显式调用 w.WriteHeader()，那么第一次调用 w.Write()会自动向用户发送 200 OK状态码。因此，如果您想发送非 200 状态代码，则必须在调用 w.Write() 之前调用 w.WriteHeader()。
+如果您没有显式调用 w.WriteHeader()，那么第一次调用 w.Write()会自动向用户发送 200 OK状态码。因此，如果您想发送非 200 状态代码，则必须在调用 w.Write() 之前调用 w.WriteHeader()。
 
 让我们看一下实际效果。
 
-​	重新启动服务器，然后打开第二个终端窗口并使用 curl 向 http://localhost:4000/snippet/create发出 POST请求。您应该会收到一个带有 200 OK状态代码的 HTTP 响应，类似于：
+重新启动服务器，然后打开第二个终端窗口并使用 curl 向 http://localhost:4000/snippet/create发出 POST请求。您应该会收到一个带有 200 OK状态代码的 HTTP 响应，类似于：
 
 ```bash
 $ curl -i -X POST http://localhost:4000/snippet/create
@@ -577,7 +577,7 @@ Content-Type: text/plain; charset=utf-8
 Create a new snippet...
 ```
 
-​	但是，如果您使用不同的请求方法——例如 GET、PUT或 DELETE——您现在应该会收到带有 405 Method Not Allowed状态代码的响应。例如：
+但是，如果您使用不同的请求方法——例如 GET、PUT或 DELETE——您现在应该会收到带有 405 Method Not Allowed状态代码的响应。例如：
 
 ```bash
 $ curl -i -X PUT http://localhost:4000/snippet/create
@@ -591,8 +591,8 @@ Method not allowed
 
 ##### 自定义标题
 
-​	我们可以做的另一项改进是在 405 Method Not Allowed 响应中包含一个 Allow 标头，让用户知道该特定 URL 支持哪些请求方法。
-​	我们可以通过使用 w.Header().Set() 方法将新标头添加到响应头映射来完成此操作，如下所示：
+我们可以做的另一项改进是在 405 Method Not Allowed 响应中包含一个 Allow 标头，让用户知道该特定 URL 支持哪些请求方法。
+​我们可以通过使用 w.Header().Set() 方法将新标头添加到响应头映射来完成此操作，如下所示：
 
 ```bash
 File: mian.go
@@ -637,7 +637,7 @@ Method not allowed
 
 ##### http.Error 快捷方式
 
-​	如果你想发送一个非200状态码和纯文本响应体（就像我们在上面的代码中所做的那样），那么这是使用http.Error() 快捷方式的好机会。这是一个轻量级的辅助函数，它接受给定的消息和状态码，然后在幕后为我们调用 w.WriteHeader() 和 w.Write() 方法。
+如果你想发送一个非200状态码和纯文本响应体（就像我们在上面的代码中所做的那样），那么这是使用http.Error() 快捷方式的好机会。这是一个轻量级的辅助函数，它接受给定的消息和状态码，然后在幕后为我们调用 w.WriteHeader() 和 w.Write() 方法。
 
 让我们更新代码以使用它。
 
@@ -661,15 +661,15 @@ func createSnippet(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-​	在功能方面，这几乎是完全相同的。最大的区别是我们现在将我们的http.ResponseWriter 传递给另一个函数，它为我们向用户发送响应。
+在功能方面，这几乎是完全相同的。最大的区别是我们现在将我们的http.ResponseWriter 传递给另一个函数，它为我们向用户发送响应。
 
-​	将 http.ResponseWriter 传递给其他函数的模式在 Go 语言中非常常见，而且在本书中我们将经常使用它。在实践中，直接使用 w.Write() 和 w.WriteHeader() 方法像我们迄今所做的那样是相当罕见的。但我想提前介绍它们，因为它们是发送响应的更高级和有趣,方法的基础。
+将 http.ResponseWriter 传递给其他函数的模式在 Go 语言中非常常见，而且在本书中我们将经常使用它。在实践中，直接使用 w.Write() 和 w.WriteHeader() 方法像我们迄今所做的那样是相当罕见的。但我想提前介绍它们，因为它们是发送响应的更高级和有趣,方法的基础。
 
 ##### net/http 常量
 
-​	我们可以做的最后一项调整是使用 net/http 包中的常量作为 HTTP 方法和状态代码，而不是我们自己编写字符串和整数。
+我们可以做的最后一项调整是使用 net/http 包中的常量作为 HTTP 方法和状态代码，而不是我们自己编写字符串和整数。
 
-​	具体来说，我们可以使用常量 http.MethodPost代替字符串 "POST"，使用常量 http.StatusMethodNotAllowed 代替整数 405。像这样：
+具体来说，我们可以使用常量 http.MethodPost代替字符串 "POST"，使用常量 http.StatusMethodNotAllowed 代替整数 405。像这样：
 
 ```
 File: main.go
@@ -692,17 +692,17 @@ func createSnippet(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-​	使用这些常量是一种很好的做法，因为它有助于防止因拼写错误而导致的运行时错误，并且在 HTTP 状态代码常量的情况下，它还可以帮助使您的代码更清晰和自我记录——尤其是在处理不常用的状态时代码。
+使用这些常量是一种很好的做法，因为它有助于防止因拼写错误而导致的运行时错误，并且在 HTTP 状态代码常量的情况下，它还可以帮助使您的代码更清晰和自我记录——尤其是在处理不常用的状态时代码。
 
 ##### 附加信息
 
 **系统生成的标头和内容嗅探**
 
-​	发送响应时，Go 会自动为您设置三个系统生成的标头：Date 和 Content-Length 以及 Content-Type。
+发送响应时，Go 会自动为您设置三个系统生成的标头：Date 和 Content-Length 以及 Content-Type。
 
-​	`Content-Type` 标头尤其值得关注。Go 会尝试通过 `http.DetectContentType()` 函数对响应体进行内容嗅探，自动设置正确的值。若该函数无法推断出内容类型，Go 会将 `Content-Type` 标头回退设置为 `application/octet-stream`。
+`Content-Type` 标头尤其值得关注。Go 会尝试通过 `http.DetectContentType()` 函数对响应体进行内容嗅探，自动设置正确的值。若该函数无法推断出内容类型，Go 会将 `Content-Type` 标头回退设置为 `application/octet-stream`。
 
-​	`http.DetectContentType()` 函数通常运行良好，但对于刚接触 Go 的 Web 开发者来说，一个常见的陷阱是它无法区分 JSON 与纯文本。因此，JSON 响应默认会带有 `Content-Type: text/plain; charset=utf-8` 标头发送。你可以通过手动设置正确的标头来避免此问题，如下所示：
+`http.DetectContentType()` 函数通常运行良好，但对于刚接触 Go 的 Web 开发者来说，一个常见的陷阱是它无法区分 JSON 与纯文本。因此，JSON 响应默认会带有 `Content-Type: text/plain; charset=utf-8` 标头发送。你可以通过手动设置正确的标头来避免此问题，如下所示：
 
 ```go
 w.Heander().Set("Content-Type", "application/json")
@@ -711,7 +711,7 @@ w.Write([]byte(`{"name": "Alex"}`))
 
 ##### 操作标头映射
 
-​	上述代码中使用 `w.Header().Set()` 向响应标头映射添加了新标头。此外，还可以使用 `Add()`、`Del()`、`Get()` 和 `Values()` 方法来读取和操作标头映射。
+上述代码中使用 `w.Header().Set()` 向响应标头映射添加了新标头。此外，还可以使用 `Add()`、`Del()`、`Get()` 和 `Values()` 方法来读取和操作标头映射。
 
 ```go
 // 设置一个新的 Cache-Control 标头。如果已存在 "Cache-Control" 标头，它将被覆盖。
@@ -730,9 +730,9 @@ w.Header().Get("Cache-Control")
 
 **标头规范化**
 
-​	对标头映射使用 `Set()`、`Add()`、`Del()`、`Get()` 和 `Values()` 方法时，标头名称始终会通过 `textproto.CanonicalMIMEHeaderKey()` 函数进行规范化。该函数将首字母及连字符后的字母转为大写，其余字母转为小写。实际影响是，调用这些方法时标头名称不区分大小写。
+对标头映射使用 `Set()`、`Add()`、`Del()`、`Get()` 和 `Values()` 方法时，标头名称始终会通过 `textproto.CanonicalMIMEHeaderKey()` 函数进行规范化。该函数将首字母及连字符后的字母转为大写，其余字母转为小写。实际影响是，调用这些方法时标头名称不区分大小写。
 
-​	如需避免此规范化行为，可直接编辑底层的标头映射（其类型为 `map[string][]string`）。例如：
+如需避免此规范化行为，可直接编辑底层的标头映射（其类型为 `map[string][]string`）。例如：
 
 ```go
 w.Header()["X-XSS-Protection"] = []string{"1; mode=block"}
@@ -744,7 +744,7 @@ w.Header()["X-XSS-Protection"] = []string{"1; mode=block"}
 
 **抑制系统生成的标头**
 
-​	`Del()` 方法不会移除系统生成的标头。若要移除这些标头，需直接访问底层标头映射并将其值设为 `nil`。例如，若要移除 `Date` 标头，需写入：
+`Del()` 方法不会移除系统生成的标头。若要移除这些标头，需直接访问底层标头映射并将其值设为 `nil`。例如，若要移除 `Date` 标头，需写入：
 
 ```go
 w.Header()["Date"] = nil
@@ -758,7 +758,7 @@ w.Header()["Date"] = nil
 
 ##### 网址查询字符串
 
-​	趁现在讲到路由，我们来更新 `snippetView` 处理函数，使其接受用户传入的 `id` 查询字符串参数，如下所示：
+趁现在讲到路由，我们来更新 `snippetView` 处理函数，使其接受用户传入的 `id` 查询字符串参数，如下所示：
 
 | Method | Pattern         | Handler       | Action                     |
 | ------ | --------------- | ------------- | -------------------------- |
@@ -766,7 +766,7 @@ w.Header()["Date"] = nil
 | ANY    | /snippet?id=1   | showSnippet   | Dispaly a specific snippet |
 | POST   | /snippet/create | createSnippet | Create a new snippet       |
 
-​	稍后我们会用这个 `id` 参数从数据库中查询对应的 snippet 并展示给用户。但目前，我们只读取 `id` 参数的值，并将其拼接到占位响应中。
+稍后我们会用这个 `id` 参数从数据库中查询对应的 snippet 并展示给用户。但目前，我们只读取 `id` 参数的值，并将其拼接到占位响应中。
 
 为实现该功能，需要更新 `showSnippet` 处理函数，完成两件事：
 
@@ -810,15 +810,15 @@ func showSnippet(w http.ResponseWriter, r *http.Request) {
 
 ##### io.writer 接口
 
-​	上述代码在底层还引入了一个新知识点。查看 `fmt.Fprintf()` 函数的文档会发现，它的第一个参数是 `io.Writer` 类型……
+上述代码在底层还引入了一个新知识点。查看 `fmt.Fprintf()` 函数的文档会发现，它的第一个参数是 `io.Writer` 类型……
 
 ```go
 func Fprintf(w io.Writer, format string, a ...any) (n int, err error)
 ```
 
-​	但我们传入的是 `http.ResponseWriter` 对象，并且运行正常。
+但我们传入的是 `http.ResponseWriter` 对象，并且运行正常。
 
-​	之所以如此，是因为 `io.Writer` 是一个接口类型，而 `http.ResponseWriter` 对象实现了该接口（因为它有 `Write()` 方法）。如果你是 Go 新手，接口的概念可能会有些令人困惑，现在我不想深入展开。你只需知道，在实践中，凡是看到 `io.Writer` 类型参数的地方，都可以传入 `http.ResponseWriter` 对象。写入的内容随后会作为 HTTP 响应体发送出去。
+之所以如此，是因为 `io.Writer` 是一个接口类型，而 `http.ResponseWriter` 对象实现了该接口（因为它有 `Write()` 方法）。如果你是 Go 新手，接口的概念可能会有些令人困惑，现在我不想深入展开。你只需知道，在实践中，凡是看到 `io.Writer` 类型参数的地方，都可以传入 `http.ResponseWriter` 对象。写入的内容随后会作为 HTTP 响应体发送出去。
 
 
 
@@ -826,13 +826,13 @@ func Fprintf(w io.Writer, format string, a ...any) (n int, err error)
 
 ---
 
-​	在继续向 `main.go` 添加更多代码之前，现在是时候考虑如何组织和构建这个项目了。
+在继续向 `main.go` 添加更多代码之前，现在是时候考虑如何组织和构建这个项目了。
 
-​	需要事先说明的是，Go 中并没有唯一正确——甚至推荐——的 Web 应用结构方式。这既是好事也是坏事。一方面，你可以自由灵活地组织代码；另一方面，在决定最佳结构时又很容易陷入不确定的困境。
+需要事先说明的是，Go 中并没有唯一正确——甚至推荐——的 Web 应用结构方式。这既是好事也是坏事。一方面，你可以自由灵活地组织代码；另一方面，在决定最佳结构时又很容易陷入不确定的困境。
 
-​	随着 Go 使用经验的积累，你会逐渐形成一套在不同场景下行之有效的模式。但作为起点，我能给的最好建议就是：不要过度复杂化。尽量只在确实需要时才引入结构和复杂性。
+随着 Go 使用经验的积累，你会逐渐形成一套在不同场景下行之有效的模式。但作为起点，我能给的最好建议就是：不要过度复杂化。尽量只在确实需要时才引入结构和复杂性。
 
-​	对于本项目，我们将采用一种流行且久经考验的结构方案。这是一个坚实的起点，其通用结构可以复用到多种项目中。
+对于本项目，我们将采用一种流行且久经考验的结构方案。这是一个坚实的起点，其通用结构可以复用到多种项目中。
 
 请确保当前位于项目仓库根目录下，然后执行以下命令：
 
@@ -862,11 +862,9 @@ $ touch cmd/web/handlers.go
 
 我们花点时间来讨论一下每个目录的用途。
 
-​	`cmd` 目录将存放项目中可执行程序的应用特定代码。目前我们只有一个可执行程序——Web 应用——它将位于 `cmd/web` 目录下。
+`cmd` 目录将存放项目中可执行程序的应用特定代码。目前我们只有一个可执行程序——Web 应用——它将位于 `cmd/web` 目录下。
 
-​	`pkg` 目录将存放项目中非应用特定的辅助代码。我们将用它来存放可能可重用的代码，例如验证辅助函数和项目的 SQL 数据库模型。
-
-​	`ui` 目录将存放 Web 应用所使用的用户界面资源。具体来说，`ui/html` 目录存放 HTML 模板，`ui/static` 目录存放静态文件（如 CSS 和图片）。
+`pkg` 目录将存放项目中非应用特定的辅助代码。我们将用它来存放可能可重用的代码，例如验证辅助函数和项目的 SQL 数据库模型。`ui` 目录将存放 Web 应用所使用的用户界面资源。具体来说，`ui/html` 目录存放 HTML 模板，`ui/static` 目录存放静态文件（如 CSS 和图片）。
 
 那么为什么要采用这种结构呢？主要有两大好处：
 
@@ -956,11 +954,11 @@ $ go run ./cmd/web
 
 **内部目录**
 
-​	需要指出的是，目录名称 internal 在 Go 中具有特殊的意义和行为：存放在这个目录下的任何包只能被父级 internal 目录的内部代码导入。在我们的情况下，这意味着任何存放在 internal 中的包都只能被我们的 snippetbox 项目目录中的代码导入。
+需要指出的是，目录名称 internal 在 Go 中具有特殊的意义和行为：存放在这个目录下的任何包只能被父级 internal 目录的内部代码导入。在我们的情况下，这意味着任何存放在 internal 中的包都只能被我们的 snippetbox 项目目录中的代码导入。
 
-​	或者换句话说，这意味着任何 internal 目录下的包都不能被我们项目之外的代码导入。
+或者换句话说，这意味着任何 internal 目录下的包都不能被我们项目之外的代码导入。
 
-​	这很有用，因为它可以防止其他代码库导入和依赖于我们的internal目录中的（可能是未经版本化和不受支持的）包 - 即使项目代码在GitHub等公共位置上可用。
+这很有用，因为它可以防止其他代码库导入和依赖于我们的internal目录中的（可能是未经版本化和不受支持的）包 - 即使项目代码在GitHub等公共位置上可用。
 
 
 
@@ -2854,6 +2852,12 @@ go: added github.com/go-sql-driver/mysql v1.10.0
 $ go get github.com/go-sql-driver/mysql@v1.0.3
 ```
 
+#### 4.3. 模块和可重现的构建
+
+---
+
+
+
 安装完成数据库驱动后，打开项目中的 **`go.mod`** 文件（这是我们在本书开始时创建的 Go 模块文件）。
 
 你应该会看到新增了一条 **`require`** 声明，其中包含：
@@ -2953,21 +2957,1164 @@ $ go get github.com/foo/bar@none
 $ go mod tidy -v
 ```
 
-#### 4.3. 模块和可重现的构建
+
 
 #### 4.4. 创建数据库连接池
 
+---
+
+现在，MySQL 数据库已经配置完成，并且数据库驱动也已经安装好了。
+
+接下来，很自然的一步就是让我们的 Web 应用程序连接到 MySQL 数据库。
+
+为此，我们需要使用 Go 提供的 `sql.Open()` 函数，其基本使用方式如下：
+
+```go
+// sql.Open() 函数初始化一个新的 sql.DB 对象
+// 该对象本质上是一个数据库连接池
+db, err := sql.Open("mysql", "web:pass@/snippetbox?parseTime=true")
+if err != nil {
+    ...
+}
+```
+
+关于这段代码，有几个需要特别说明和强调的地方：
+
+- `sql.Open()` 的第一个参数是**数据库驱动名称（Driver Name）**，第二个参数是**数据源名称（Data Source Name，简称 DSN，也称连接字符串 Connection String）**，用于描述如何连接到数据库。
+- 数据源名称（DSN）的格式取决于你所使用的数据库和驱动程序。通常可以在对应驱动的官方文档中找到详细说明和示例。对于本书使用的驱动，也可以参考其官方文档。
+- 上述 DSN 中的 `parseTime=true` 是当前驱动特有的参数，它会告诉驱动程序将数据库中的 `TIME` 和 `DATE` 类型自动转换为 Go 的 `time.Time` 对象。
+- `sql.Open()` 返回的是一个 `sql.DB` 对象。需要特别注意的是，它**并不是一个数据库连接（Database Connection）**，而是一个**数据库连接池（Connection Pool）**。这是一个非常重要的概念。Go 会根据需要，通过数据库驱动自动创建、复用和关闭连接，而无需开发者手动管理。
+- 数据库连接池支持**并发安全（Concurrency-safe）**，因此可以在多个 Web 请求处理器（Handler）之间安全地共享使用。
+- 数据库连接池的设计目标是**长期存在（Long-lived）**。在 Web 应用中，通常会在 `main()` 函数中初始化连接池，然后将其作为依赖传递给各个 Handler 使用。**不应该在生命周期很短的 Handler 中反复调用 `sql.Open()`**，否则会浪费内存和网络资源。
+
+##### 在我们的网络应用程序中的使用
+
+接下来，我们通过一个实际示例来看看如何使用 `sql.Open()`。
+
+请打开项目中的 `main.go` 文件，并添加如下代码：
+
+````
+File: cmd/web/main.go
+```
+
+```go
+package main
+
+import (
+	"database/sql"
+	"flag"
+	"log"
+	"net/http"
+	"os"
+    
+    _ "github.com/go-sql-driver/mysql"
+)
+
+func main() {
+
+	addr := flag.String("addr", ":4000", "HTTP network address")
+
+	// 为 MySQL DSN 字符串定义一个新的命令行标志。
+	dsn := flag.String("dsn", "web:pass@tcp(localhost:3306)/snippetbox?parseTime=true", "MySQL data source name")
+
+	flag.Parse()
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	// 为保持 main() 函数简洁，我将创建连接池的代码放到了下面的 openDB() 函数中
+	// 我们将命令行标志中的 DSN 传给 openDB()
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	// 我们还延迟调用 db.Close()
+	// 以确保在 main() 函数退出前关闭连接池
+	defer db.Close()
+
+	app := &application{
+		infoLog:  infoLog,
+		errorLog: errorLog,
+	}
+
+	// 初始化一个新的 http.Server 结构体。设置 Addr 和 Handler 字段
+	// 使服务器使用与之前相同的网络地址和路由，并设置 ErrorLog 字段
+	// 以便服务器在出现任何问题时使用自定义的 errorLog logger
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  app.routes(),
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	// 因为 err 变量在上面的代码中已经声明过了，所以这里需要使用赋值运算符 =，
+	// 而不能使用 :=（声明并赋值）运算符
+	err = srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+
+// openDB() 函数封装了 sql.Open()
+// 返回给定 DSN 对应的 sql.DB 连接池
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+```
+
+关于这段代码，还有几个值得注意的地方：
+
+- 注意到数据库驱动的导入路径前面加了一个下划线（`_`）吗？这是因为在 `main.go` 文件中，我们实际上并没有直接使用 `mysql` 包中的任何内容。如果按普通方式导入，Go 编译器会提示该包未被使用（imported and not used）。但是，我们又需要该驱动包中的 `init()` 函数自动执行，以便将驱动注册到 `database/sql` 包中。因此，我们将包导入为**空白标识符（Blank Identifier）**，这种写法是 Go 中使用 SQL 驱动的标准做法。
+- `sql.Open()` 并不会立即建立数据库连接，它只是初始化一个供后续使用的**数据库连接池（Connection Pool）**。真正的数据库连接采用**延迟创建（Lazy Initialization）**的方式，只有在第一次真正需要访问数据库时才会建立。因此，为了确认数据库配置是否正确，我们需要调用 `db.Ping()` 方法主动建立一次连接，并检查是否发生错误。
+- 目前来看，`defer db.Close()` 这行代码其实有些多余。因为当前应用程序只会通过两种方式退出：一种是收到中断信号（例如按下 `Ctrl+C`），另一种是调用 `errorLog.Fatal()`。无论是哪种情况，程序都会立即终止，而 `defer` 注册的函数都不会得到执行。不过，保留 `db.Close()` 仍然是一种良好的编程习惯。如果将来为应用程序增加**优雅关闭（Graceful Shutdown）**功能，它就会发挥作用。
+
+##### 测试连接
+
+请确保已经保存了文件，然后尝试运行应用程序。
+
+如果一切顺利，数据库连接池应该能够成功初始化，`db.Ping()` 方法也应该能够成功建立数据库连接，而不会产生任何错误。
+
+如果没有问题，你应该会像之前一样看到正常的 **`Starting server...`** 日志输出，如下所示：
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/29 15:14:25 Starting server on :4000
+```
+
+如果应用程序启动失败，并出现类似下面的 **"Access denied..."（拒绝访问）** 错误信息，那么问题很可能出在你的 **DSN（数据源名称，连接字符串）** 配置上。
+
+请仔细检查以下几项：
+
+- 用户名和密码是否填写正确
+- 数据库用户是否具有正确的访问权限
+- MySQL 实例是否使用了标准配置（例如主机地址、端口等）
+
+```bash
+$ go run ./cmd/web
+ERROR   2026/06/29 15:16:05 main.go:29: Error 1045 (28000): Access denied for user 'we'@'localhost' (using password: YES)
+exit status 1
+
+# 没配置主机地址和端口号
+# dsn := flag.String("dsn", "web:pass@snippetbox?parseTime=true", "MySQL data source name")
+$ go run ./cmd/web
+ERROR   2026/06/29 15:13:08 main.go:29: invalid DSN: missing the slash separating the database name
+exit status 1
+```
+
+
+
 #### 4.5. 设计数据库模型
+
+---
+
+在本章中，我们将为项目搭建一个**数据库模型（Database Model）**的基本框架。
+
+如果你不喜欢 **Model（模型）** 这个术语，也可以把它理解为 **Service Layer（服务层）** 或 **Data Access Layer（数据访问层）**。无论采用哪种称呼，其核心思想都是一致的：**将所有与 MySQL 数据库交互的代码封装到一个独立的包（Package）中，使其与应用程序的其他部分相互分离。**
+
+目前，我们先创建一个数据库模型的**基本骨架（Skeleton）**，并让它返回一些模拟数据（Dummy Data）。
+
+虽然它暂时还不会完成太多实际功能，但在开始编写具体的 SQL 查询之前，我希望先介绍这种代码组织模式和整体结构。
+
+如果没有问题，那就继续吧，在 `pkg` 目录下创建以下几个新的文件夹和文件：
+
+```bash
+$ mkdir pkg/models/mysql
+$ type nul > pkg/models/models.go
+$ type nul > pkg/models/mysql/snippets.go
+```
+
+![image-20260629152920816](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260629152920816.png)
+
+> [!TIP]
+>
+> `pkg` 目录用于存放**辅助性的、与具体应用无关（non-application-specific）**的代码，这些代码具有一定的通用性，将来有可能在其他项目中复用。
+>
+> 数据库模型正符合这一特点，因为它不仅可以被当前的 Web 应用使用，将来也可以被其他程序（例如命令行应用程序 CLI）复用，因此将其放在 `pkg` 目录下是一个比较合适的选择。
+
+首先，我们将在 `pkg/models/models.go` 文件中定义数据库模型所使用和返回的顶层数据类型（Top-level Data Types）。
+
+请打开该文件，并添加如下代码：
+
+```
+File: pkg/models/models.go
+```
+
+```go
+package models
+
+import (
+	"errors"
+	"time"
+)
+
+var ErrNoRecord = errors.New("models: no matching record found")
+
+type Snippet struct {
+	ID      int
+	Title   string
+	Content string
+	Created time.Time
+	Expires time.Time
+}
+```
+
+请注意，`Snippet` 结构体中的各个字段与 MySQL 数据库中 `snippets` 表的字段是一一对应的。
+
+接下来，我们进入 `pkg/models/mysql/snippets.go` 文件。
+
+该文件将专门用于编写与 MySQL 数据库中 `snippets` 表相关的代码。
+
+在这个文件中，我们将定义一个新的 `SnippetModel` 类型，并为它实现一些方法，用于访问和操作数据库，例如：
+
+```
+File: pkg/models/mysql/snippets.go
+```
+
+```go
+package mysql
+
+import (
+	"database/sql"
+
+	"github.com/maxfeizi04-cloude/snippetbox/pkg/models"
+)
+
+// SnippetModel ,封装 sql.DB 连接池
+type SnippetModel struct {
+	DB *sql.DB
+}
+
+// Insert 向数据库中插入一条新 snippet
+func (m *SnippetModel) Insert(title, content, expires string) (int, error) {
+	return 0, nil
+}
+
+// Get 根据 id 返回对应的 snippet
+func (m *SnippetModel) Get(id int) (*models.Snippet, error) {
+	return nil, nil
+}
+
+// Latest 返回最近创建的 10 条 snippet
+func (m *SnippetModel) Latest() ([]*models.Snippet, error) {
+	return nil, nil
+}
+```
+
+这里还有一个需要特别说明的地方，就是导入语句 `github.com/maxfeizi04-cloude/snippetbox/pkg/models`。
+
+请注意，我们导入内部包（Internal Package）时所使用的导入路径，都以前面在本书开始时创建 Go Module 时所指定的**模块路径（Module Path）**作为前缀。
+
+##### 使用片段模型
+
+为了在 Handler 中使用这个模型，我们需要在 `main()` 函数中创建一个新的 `SnippetModel` 实例，然后通过 `application` 结构体将其作为依赖注入（Dependency Injection）到各个 Handler 中，就像之前处理其他依赖一样。
+
+具体实现如下：
+
+```
+File: cmd/web/handlers
+```
+
+```go
+package main
+
+import (
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+
+	"github.com/maxfeizi04-cloude/snippetbox/pkg/models/mysql"
+)
+
+// 在 application 结构体中添加 snippets 字段
+// 这将使 SnippetModel 对象在 handlers 中可用
+type application struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+	snippets *mysql.SnippetModel
+}
+
+...
+```
+
+```
+File: cmd/web/main.go
+```
+
+```go
+package main
+
+import (
+	"database/sql"
+	"flag"
+	"log"
+	"net/http"
+	"os"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/maxfeizi04-cloude/snippetbox/pkg/models/mysql"
+)
+
+func main() {
+
+	addr := flag.String("addr", ":4000", "HTTP network address")
+	dsn := flag.String("dsn", "web:pass@tcp(localhost:3306)/snippetbox?parseTime=true", "MySQL data source name")
+	flag.Parse()
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	// 为保持 main() 函数简洁，我将创建连接池的代码放到了下面的 openDB() 函数中
+	// 我们将命令行标志中的 DSN 传给 openDB()
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	// 我们还延迟调用 db.Close()
+	// 以确保在 main() 函数退出前关闭连接池
+	defer db.Close()
+
+	app := &application{
+		infoLog:  infoLog,
+		errorLog: errorLog,
+		snippets: &mysql.SnippetModel{DB: db},
+	}
+
+	// 初始化一个新的 http.Server 结构体。设置 Addr 和 Handler 字段
+	// 使服务器使用与之前相同的网络地址和路由，并设置 ErrorLog 字段
+	// 以便服务器在出现任何问题时使用自定义的 errorLog logger
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  app.routes(),
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	// 因为 err 变量在上面的代码中已经声明过了，所以这里需要使用赋值运算符 =，
+	// 而不能使用 :=（声明并赋值）运算符
+	err = srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+
+...
+```
+
+##### 附加信息
+
+**这种结构的好处**
+
+按照这种方式组织 Model，刚开始看起来可能会有些复杂、甚至有些绕，尤其是对于刚接触 Go 的开发者来说更是如此。
+
+不过，随着应用程序不断发展，你会逐渐明白为什么要采用这样的代码组织方式。
+
+如果站在整体架构的角度来看，它带来了许多好处：
+
+- **职责划分清晰（Separation of Concerns）**。数据库相关逻辑与 Handler 完全分离，因此 Handler 只负责处理 HTTP 相关工作，例如请求校验和响应输出。这使得以后编写职责单一、针对性强的单元测试更加容易。
+- 通过定义自定义的 `SnippetModel` 类型，并将数据库操作封装为它的方法，我们把整个数据库模型组织成了一个结构清晰、封装完整的对象。这样既方便初始化，也便于作为依赖注入到各个 Handler 中，从而使代码更容易维护，也更容易测试。
+- 由于所有数据库操作都定义为 `SnippetModel` 的方法，因此后续可以很方便地为它定义接口（Interface），并在单元测试中使用 Mock 对象进行替换，提高代码的可测试性。
+- 通过命令行参数，我们可以在运行时灵活决定应用程序连接哪个数据库，而无需修改业务代码。
+- 最后，这种目录结构具有良好的扩展性。如果项目以后需要支持多个数据存储后端，例如一部分数据保存在 Redis 中，那么可以将对应的 Model 放在 `pkg/models/redis` 包中，与 MySQL 的 Model 并列管理。
+
+
 
 #### 4.6. 执行 SQL 语句
 
+---
+
+接下来，我们将更新刚刚创建的 `SnippetModel.Insert()` 方法，使其能够在 `snippets` 表中插入一条新的记录，并返回该记录生成的整型 `id`。
+
+为此，我们需要在数据库中执行下面这条 SQL 语句：
+
+```sql
+INSERT INTO snippets (title, content, created, expires)
+VALUES (?,?,UTC_TIMESTAMP(),DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? DAY ))
+```
+
+请注意，在这条 SQL 语句中，我们使用 **`?`** 作为**占位符参数（Placeholder Parameters）**，表示稍后需要插入数据库的数据。
+
+这是因为这些数据最终都会来自用户提交的表单，属于**不可信的用户输入（Untrusted User Input）**。
+
+因此，最佳实践是使用占位符参数来传递数据，而不是直接将用户输入拼接（插值，interpolate）到 SQL 语句中。这样可以有效防止 **SQL 注入（SQL Injection）** 等安全问题。
+
+##### 执行查询
+
+Go 的 `database/sql` 包提供了三种执行数据库操作的方法：
+
+- `DB.Query()`：用于执行返回**多条记录**的 `SELECT` 查询。
+- `DB.QueryRow()`：用于执行返回**单条记录**的 `SELECT` 查询。
+- `DB.Exec()`：用于执行**不会返回结果集**的 SQL 语句，例如 `INSERT`、`UPDATE` 和 `DELETE`。
+
+因此，在当前场景下，最适合使用的方法就是 `DB.Exec()`。
+
+下面，我们将直接通过实例演示如何在 `SnippetModel.Insert()` 方法中使用 `DB.Exec()` 完成数据插入，稍后再详细讲解其中的实现细节。
+
+请打开 `pkg/models/mysql/snippets.go` 文件，并将其修改为如下内容：
+
+```
+File: pkg/models/mysql/snippets.go
+```
+
+```go
+package mysql
+
+...
+
+// SnippetModel ,封装 sql.DB 连接池
+type SnippetModel struct {
+	DB *sql.DB
+}
+
+// Insert 向数据库中插入一条新 snippet
+func (m *SnippetModel) Insert(title, content, expires string) (int, error) {
+	// 编写要执行的 SQL 语句。为便于阅读，我将其分成了两行
+	//(因此用反引号括起来，而不是普通的双引号)
+	stmt := `INSERT INTO snippets (title, content, created, expires)
+	VALUES (?,?,UTC_TIMESTAMP(),DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? DAY ))`
+
+	// 使用内嵌连接池的 Exec() 方法执行该语句
+	// 第一个参数是 SQL 语句，后面依次是占位符参数对应的 title、content 和 expires 值
+	// 该方法返回一个 sql.Result 对象，其中包含语句执行情况的基本信息
+	result, err := m.DB.Exec(stmt, title, content, expires)
+	if err != nil {
+		return 0, err
+	}
+	// 使用 result 对象的 LastInsertId() 方法获取 snippets 表中新插入记录的 ID
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	// 返回的 ID 类型为 int64，因此返回前将其转换为 int 类型
+	return int(id), nil
+}
+
+...
+```
+
+接下来，我们简单介绍一下 `DB.Exec()` 返回的 `sql.Result` 接口。
+
+该接口提供了两个常用的方法：
+
+- `LastInsertId()`：返回数据库在执行当前 SQL 语句后生成的整数值（类型为 `int64`）。通常情况下，这个值就是插入新记录时**自增（AUTO_INCREMENT）**字段生成的主键 ID，而这正是我们当前场景所需要的。
+- `RowsAffected()`：返回当前 SQL 语句所影响的记录数（类型为 `int64`）。
+
+> [!IMPORTANT]
+>
+> 并非所有数据库驱动和数据库都支持 `LastInsertId()` 和 `RowsAffected()` 这两个方法。
+>
+> 例如，**PostgreSQL** 就不支持 `LastInsertId()`。
+>
+> 因此，如果你打算使用这些方法，务必先查阅所使用数据库驱动的官方文档，确认其是否提供相应的支持。
+
+另外，如果你并不需要使用 `sql.Result` 返回值，那么完全可以（而且这也是一种很常见的做法）直接忽略它。例如：
+
+```go
+_, err := m.DB.Exec("INSERT INTO ...", ...)
+```
+
+##### 在我们的处理程序中使用模型
+
+接下来，我们回到一个更加具体的示例，演示如何在 Handler 中调用刚刚编写的这部分代码。
+
+请打开 `cmd/web/handlers.go` 文件，并将 `createSnippet` Handler 修改为如下内容：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+package main
+
+...
+
+func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		app.clientError(w, http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 创建一些存有测试数据的变量。稍后构建时会移除这些数据
+	title := "0 snail"
+	content := "0 snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n-Kobayashi Issa"
+	expires := "7"
+
+	// 将数据传给 SnippetModel.Insert() 方法，并接收新记录的 ID
+	id, err := app.snippets.Insert(title, content, expires)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// 将用户重定向到该 snippet 对应的页面
+	http.Redirect(w, r, fmt.Sprintf("/snippet?id=%d", id), http.StatusSeeOther)
+
+}
+```
+
+启动应用程序后，再打开一个新的终端窗口，使用 `curl` 发送一个 `POST /snippet/create` 请求，如下所示（注意：`-L` 参数用于让 `curl` 自动跟随重定向请求）：
+
+```bash
+$ curl -iL -X POST http://localhost:4000/snippet/create
+HTTP/1.1 303 See Other
+Location: /snippet?id=6
+Date: Mon, 29 Jun 2026 08:17:47 GMT
+Content-Length: 0
+
+HTTP/1.1 200 OK
+Date: Mon, 29 Jun 2026 08:17:47 GMT
+Content-Length: 39
+Content-Type: text/plain; charset=utf-8
+
+Display a specific snippet with ID 6...
+```
+
+目前一切运行得非常顺利。
+
+我们刚刚发送了一个 HTTP 请求，该请求触发了 `createSnippet` 处理函数，而这个处理函数又调用了 `SnippetModel.Insert()` 方法。
+
+该方法在数据库中插入了一条新记录，并返回了这条记录的 ID。
+
+随后，Handler 使用这个 ID 作为查询字符串参数（query string parameter），重定向到了另一个 URL。
+
+你可以打开 MySQL 数据库中的 `snippets` 表查看结果。
+
+你应该能够看到三条新插入的记录，其 ID 类似于 4, 5 , 6，如下所示：
+
+```sql
+mysql> SELECT id, title, expires FROM snippets;
++----+------------------------+---------------------+
+| id | title                  | expires             |
++----+------------------------+---------------------+
+|  1 | An old silent pond     | 2027-06-28 10:44:44 |
+|  2 | Over the wintry forest | 2027-06-28 10:48:34 |
+|  3 | First autumn morning   | 2026-07-05 10:50:55 |
+|  4 | 0 snail                | 2026-07-06 08:11:44 |
+|  5 | 0 snail                | 2026-07-06 08:12:16 |
+|  6 | 0 snail                | 2026-07-06 08:17:47 |
++----+------------------------+---------------------+
+6 rows in set (0.00 sec)
+```
+
+##### 附加信息
+
+**占位符参数**
+
+在上述代码中，我们使用了**占位符参数（Placeholder Parameters）**来构建 SQL 语句，其中 `?` 用作待插入数据的占位符。
+
+使用占位符参数而不是字符串拼接（string interpolation）来构造 SQL 查询的原因，是为了防止来自不可信用户输入的 **SQL 注入攻击（SQL Injection）**。
+
+在底层实现上，`DB.Exec()` 方法大致分为三个步骤：
+
+1. 它会在数据库端创建一个**预处理语句（Prepared Statement）**，使用提供的 SQL 语句。数据库会对该语句进行解析和编译，并保存起来以备执行。
+
+2. 在第二步中，`Exec()` 会将参数值单独发送给数据库。数据库随后使用这些参数执行已编译的预处理语句。由于参数是在语句编译完成之后才传递的，因此数据库会将它们视为纯数据，而不会影响 SQL 语句的结构或意图。只要最初的 SQL 语句本身没有被不可信数据污染，就不会发生注入攻击。
+3. 最后，数据库会关闭（或释放）这个预处理语句。
+
+需要注意的是，不同数据库的占位符语法是不同的。MySQL、SQL Server 和 SQLite 使用 `?` 这种写法，而 PostgreSQL 使用 `$N` 的形式。例如，如果使用 PostgreSQL，则应该这样写：
+
+```go
+_, err := m.DB.Exec("INSERT INTO ... VALUES ($1, $2, $3)", ...)
+```
+
+
+
 #### 4.7. 单记录 SQL 查询
+
+---
+
+从数据库中 **查询单条记录（SELECT a single record）** 的模式会稍微复杂一些。
+
+接下来，我们通过更新 `SnippetModel.Get()` 方法来说明这一过程，使其能够根据 ID 返回一条指定的 snippet 记录。
+
+为此，我们需要在数据库中执行如下 SQL 查询：
+
+```sql
+SELECT id, title, content, created, expires FROM snippets
+WHERE expires > UTC_TIMESTAMP() AND id = ?
+```
+
+由于我们的 `snippets` 表使用 `id` 作为主键，因此该查询最多只会返回一条记录（或者在没有匹配数据时返回空结果）。
+
+同时，这条查询还包含了对过期时间（expiry time）的检查，这样可以确保不会返回已经过期的 snippet。
+
+另外，请注意我们同样使用了占位符参数来传递 `id` 值。
+
+请打开 `pkg/models/mysql/snippets.go` 文件，并添加如下代码：
+
+```
+File: pkg/models/mysql/snippets.go
+```
+
+```go
+// Get 根据 id 返回对应的 snippet
+func (m *SnippetModel) Get(id int) (*models.Snippet, error) {
+
+	// 编写要执行的 SQL 语句
+	// 同样,为便于阅读,我将其分成了两行
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+	WHERE expires > UTC_TIMESTAMP() AND id = ?`
+
+	// 使用连接池的 QueryRow() 方法执行 SQL 语句,将不可信的 id 变量作为占位符参数的值传入
+	// 该方法返回一个指向 sql.Row 对象的指针,该对象包含数据库返回的结果
+	row := m.DB.QueryRow(stmt, id)
+
+	// 初始化一个指向零值 Snippet 结构体的指针
+	s := &models.Snippet{}
+
+	// 使用 row.Scan() 将 sql.Row 中各字段的值复制到 Snippet 结构体对应的字段中
+	// 注意,row.Scan 的参数是指向目标位置的指针
+	// 且参数数量必须与语句返回的列数完全一致
+	err := row.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+	if err != nil {
+		// 如果查询没有返回行，row.Scan() 会返回 sql.ErrNoRows 错误
+		// 我们使用 errors.Is() 函数专门检查该错误，并返回自定义的 models.ErrNoRecord 错误
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, models.ErrNoRecord
+		}
+		return nil, err
+	}
+	// 一切正常则返回 Snippet 对象。
+	return s, nil
+}
+```
+
+> [!NOTE]
+>
+> 你可能会疑惑，为什么我们返回的是 `models.ErrNoRecord` 错误，而不是直接返回 `sql.ErrNoRows`。
+>
+> 这样做的原因是为了让模型（model）保持**完全封装（encapsulation）**，使应用程序不需要关心底层使用的具体数据存储实现，也不依赖于某个特定数据存储（datastore）所定义的错误类型来决定自身行为。
+
+##### 检查：类型转换（Type Conversions）
+
+在 `rows.Scan()` 的内部，数据库驱动会自动将 SQL 返回的原始数据转换为对应的 Go 原生类型。
+
+只要你在 SQL 类型和 Go 类型之间的映射是合理的，这些转换通常都可以正常工作（“Just Work”）。
+
+一般情况下的映射关系如下：
+
+- `CHAR`、`VARCHAR`、`TEXT` → `string`
+- `BOOLEAN` → `bool`
+- `INT` → `int`；`BIGINT` → `int64`
+- `DECIMAL`、`NUMERIC` → `float`
+- `TIME`、`DATE`、`TIMESTAMP` → `time.Time`
+
+需要注意的是，我们使用的 MySQL 驱动有一个特殊之处：必须在 DSN 中添加 `parseTime=true` 参数，才能强制将 `TIME` 和 `DATE` 类型转换为 `time.Time`。
+
+否则，这些字段会被返回为 `[]byte` 类型。
+
+这一点是该驱动提供的众多**特定参数（driver-specific parameters）**之一。
+
+##### 在我们的处理程序中使用模型
+
+好了，现在让我们真正使用 `SnippetModel.Get()` 方法。
+
+请打开 `cmd/web/handlers.go` 文件，并更新 `showSnippet` 这个 handler，使其能够根据指定记录返回 HTTP 响应数据：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		app.notFound(w)
+		return
+	}
+
+	// 使用 SnippetModel 对象的 Get 方法，根据 ID 检索特定记录的数据。
+	// 如果未找到匹配记录，则返回 404 Not Found 响应
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+	// 将 snippet 数据作为纯文本 HTTP 响应体写入
+	fmt.Fprintf(w, "%v", s)
+}
+```
+
+我们来试一下。打开浏览器，访问 `http://localhost:4000/snippet?id=1`。你应该会看到类似如下的 HTTP 响应：
+
+![image-20260629175253036](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260629175253036.png)
+
+你也可以尝试请求一些其他的 snippet，例如已经过期的记录，或者根本不存在的记录（比如 `id=99`8），用来验证系统是否会正确返回 **404 Not Found（未找到资源）** 响应：
+
+![image-20260629175345339](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260629175345339.png)
+
+##### 附加信息
+
+**哨兵错误**（Sentinel Errors）与 `errors.Is()`
+
+在上面的代码中，我们使用了 `errors.Is()` 函数（Go 1.13 引入）来判断一个错误是否匹配某个特定值。
+
+在这里，我们的目的是判断错误是否等于 `sql.ErrNoRows`。
+
+关于这一点，有一些更深入的概念需要说明。
+
+首先，`sql.ErrNoRows` 属于所谓的**哨兵错误（Sentinel Error）**。
+
+我们可以简单地将哨兵错误理解为：**存储在全局变量中的错误对象**。
+
+通常，这类错误是通过 `errors.New()` 创建的。
+
+标准库中一些典型的哨兵错误包括：
+
+1. `io.ErrUnexpectedEOF`
+2. `bytes.ErrTooLarge`
+
+而我们自己刚刚定义的 `models.ErrNoRecord` 也属于哨兵错误的一种。
+
+在 Go 1.13 之前，判断某个错误是否匹配特定哨兵错误的惯用方式是这样的：
+
+```go
+if err == sql.ErrNoRows {
+    // Do something
+} else {
+    // Do something else
+}
+```
+
+但从 Go 1.13 及之后的版本开始，推荐使用 `errors.Is()` 函数来进行判断，代码如下：
+
+```go
+if errors.Is(err, sql.ErrNoRows) {
+    // Do something
+} else {
+    // Do something else
+}
+```
+
+这样做的原因是：从 Go 1.13 开始，引入了**错误包装（error wrapping）**机制，可以在错误中附加额外信息。
+
+因此，如果一个**哨兵错误（sentinel error）**被包装过，那么旧的错误判断方式就可能失效，因为被包装后的错误已经不再等于原始的哨兵错误。
+
+而 `errors.Is()` 的不同之处在于，它在进行匹配判断之前，会**自动解包（unwrap）错误链**（如果存在包装的话），然后再进行比较。
+
+因此，如果你使用的是 Go 1.13 或更新版本，建议优先使用 `errors.Is()`。
+
+这样做可以让你的代码更具**前瞻性（future-proof）**，避免未来因为你自己或第三方依赖对错误进行包装而导致判断失效的问题。
+
+另外，还有一个函数 `errors.As()`，它用于判断一个（可能被包装过的）错误是否属于某种特定类型。我们将在本书后面使用到它。
+
+如果你想了解 Go 1.13 错误机制的更多细节，可以查阅官方 FAQ。
+
+**速记单记录查询**
+
+我特意让 `SnippetModel.Get()` 方法的代码稍微“啰嗦”一些，是为了帮助你更清楚地理解代码背后的运行机制。
+
+在实际开发中，你可以利用一个特性来简化代码（至少可以减少代码行数）：`DB.QueryRow()` 返回的错误会被延迟处理，直到调用 `Scan()` 方法时才真正被检查。
+
+因此，这种写法在功能上没有任何区别，但如果你愿意，可以将代码重写成下面这种更简洁的形式：
+
+```go
+func (m *SnippetModel) Get(id int) (*models.Snippet, error) {
+	s := &models.Snippet{}
+	err := m.DB.QueryRow("SELECT ...", id).Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, models.ErrNoRecord
+		} else {
+		return nil, err
+		}
+	}
+    
+	return s, nil
+}
+```
+
+
 
 #### 4.8. 多记录 SQL 查询
 
-#### 4.9. 交易和其他细节
+---
+
+最后，我们来看一下执行 **返回多行结果的 SQL 语句** 的标准模式。
+
+我将通过更新 `SnippetModel.Latest()` 方法来演示这一点：该方法会返回最近创建的 10 条 snippets（前提是这些记录尚未过期），对应的 SQL 查询如下：
+
+```sql
+SELECT id, title, content, created, expires FROM snippets
+WHERE expires > UTC_TIMESTAMP() ORDER BY created DESC LIMIT 10
+```
+
+请打开 `pkg/models/mysql/snippets.go` 文件，并添加如下代码：
+
+```go
+// Latest 返回最近创建的 10 条 snippet
+func (m *SnippetModel) Latest() ([]*models.Snippet, error) {
+	// 编写要执行的 SQL 语句
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+	WHERE expires > UTC_TIMESTAMP() ORDER BY created DESC LIMIT 10`
+	// 使用连接池的 Query() 方法执行 SQL 语句
+	// 该方法返回一个包含查询结果的 sql.Rows 结果集
+	rows, err := m.DB.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// 初始化一个空切片，用于存放 models.Snippet 对象
+	snippets := []*models.Snippet{}
+
+	// 使用 rows.Next() 遍历结果集中的行
+	// 这会准备第一行（及随后的每一行），供 rows.Scan() 方法处理
+	// 若遍历完成所有行，结果集会自动关闭并释放底层数据库连接
+	for rows.Next() {
+		// 创建一个指向零值 Snippet 结构体的指针
+		s := &models.Snippet{}
+
+		// 使用 rows.Scan() 将行中各字段的值复制到新创建的 Snippet 对象中
+		// 同样，row.Scan() 的参数必须是指向目标位置的指针
+		// 且参数数量必须与语句返回的列数完全一致
+		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+		if err != nil {
+			return nil, err
+		}
+		// 将其追加到 snippets 切片中。
+		snippets = append(snippets, s)
+	}
+
+	// rows.Next() 循环完成后，调用 rows.Err() 获取迭代过程中遇到的任何错误
+	// 调用此方法很重要——不要假设已成功完成对整个结果集的迭代
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	// 一切正常则返回 Snippets 切片
+	return snippets, nil
+}
+```
+
+> [!CAUTION]
+>
+> 在这里，使用 `defer rows.Close()` 来关闭结果集（resultset）是非常关键的一步。
+>
+> 只要结果集处于打开状态，它就会一直占用底层的数据库连接。
+>
+> 因此，如果在这个方法执行过程中出现问题，导致结果集没有被正确关闭，就可能很快耗尽连接池中的所有可用连接，从而引发严重的资源耗尽问题。
+
+##### 在我们的处理程序中使用模型
+
+请回到 `cmd/web/handlers.go` 文件，并更新 `home` handler，使其使用 `SnippetModel.Latest()` 方法，将 snippet 的内容直接输出到 HTTP 响应中。
+
+目前，你可以先将与模板渲染相关的代码注释掉，如下所示：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	for _, snippet := range s {
+		fmt.Fprintf(w, "%v\n", snippet)
+	}
+
+	// 初始化一个包含两个文件路径的切片
+	// 注意，home.page.tmpl 文件必须是切片中的 *第一个* 文件。
+	// files := []string{
+	//	"./ui/html/home.page.tmpl",
+	//	"./ui/html/base.layout.tmpl",
+	//	"./ui/html/footer.partial.tmpl",
+	//}
+
+	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
+	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
+	// 500 Internal Server Error 响应
+	// ts, err := template.ParseFiles(files...)
+	// if err != nil {
+	//	app.serverError(w, err)
+	//	return
+	//}
+
+	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
+	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
+	// err = ts.Execute(w, nil)
+	// if err != nil {
+	//	app.serverError(w, err)
+```
+
+如果现在运行应用程序，并在浏览器中访问 `http://localhost:4000`，你应该会看到类似下面这样的响应结果：
+
+![image-20260629181609127](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260629181609127.png)
+
+
+
+#### 4.9. 事务和其他详细信息
+
+---
+
+##### The database/sql package
+
+正如你现在可能已经意识到的，`database/sql` 包本质上是在 Go 应用程序与各种 SQL 数据库之间提供了一个**标准化接口（standard interface）**。
+
+只要你使用 `database/sql` 包编写代码，这些 Go 代码通常都是**可移植的（portable）**，可以在不同类型的 SQL 数据库之间工作，例如 MySQL、PostgreSQL、SQLite 等。
+
+这意味着你的应用程序不会与当前所使用的数据库强耦合（tightly coupled），从理论上来说，你可以在未来更换数据库，而无需重写大量代码（当然，仍需考虑各数据库驱动的差异和 SQL 方言实现的不同）。
+
+不过需要注意的是，虽然 `database/sql` 在统一 SQL 数据库接口方面做得很好，但不同数据库和驱动的行为仍然存在一些**细微差异（idiosyncrasies）**。
+
+因此，在开始使用某个新的数据库驱动之前，最好仔细阅读其官方文档，了解其中可能存在的特殊行为和边界情况。
+
+##### 唠叨(**Verbosity**)
+
+如果你来自 Ruby、Python 或 PHP 等语言，那么在 Go 中编写 SQL 查询的代码可能会显得有些冗长，尤其是当你习惯使用 ORM 或抽象层（abstraction layer）的时候。
+
+但这种“冗长”的好处在于：代码是**非魔法化（non-magical）**的——我们可以清楚地理解并完全掌控每一步发生了什么。
+
+随着时间的推移，你会逐渐熟悉这些 SQL 查询的模式，并能够在不同项目中复用或复制已有的写法。
+
+如果你确实开始觉得这种冗长令人困扰，那么可以考虑使用 `jmoiron/sqlx` 这个第三方包。它设计良好，并在 `database/sql` 的基础上提供了一些扩展功能，可以让 SQL 操作更加简洁和高效。
+
+##### 管理空值
+
+Go 在处理数据库记录中的 **NULL 值** 时并不算特别方便。
+
+我们假设 `snippets` 表中的某一行，其 `title` 字段的值为 `NULL`。
+
+如果我们查询这一行数据，那么 `rows.Scan()` 会返回一个错误，因为它无法将 `NULL` 转换为 Go 的 `string` 类型：
+
+```sql
+sql: Scan error on column index 1: unsupported Scan, storing driver.Value type
+&lt;nil&gt; into type *string
+```
+
+一个非常粗略的解决方法是，将你用于接收数据的字段类型从 `string` 改为 `sql.NullString` 类型。你可以参考这个 gist 来查看一个完整示例。
+
+不过，一般来说，更简单的做法是尽量避免使用 NULL 值。
+
+可以在数据库中为所有字段设置 `NOT NULL` 约束（就像本书中所做的那样），并在必要时为字段设置合理的默认值（DEFAULT values）。
+
+##### 处理事务
+
+需要注意的是，`Exec()`、`Query()` 和 `QueryRow()` 这些方法调用时，可能会使用 `sql.DB` 连接池中的任意一个连接。
+
+即使你在代码中连续调用两个 `Exec()`，也不能保证它们会使用同一个数据库连接。
+
+在某些情况下，这种行为是不可接受的。
+
+例如，当你在 MySQL 中使用 `LOCK TABLES` 锁定表之后，必须在**同一个连接**上执行 `UNLOCK TABLES`，否则可能会导致死锁（deadlock）。
+
+为了确保多个 SQL 语句在同一个连接上执行，你可以使用**事务（transaction）**将它们包装起来。
+
+下面是基本的事务使用模式：
+
+```go
+type ExampleModel struct {
+    DB *sql.DB
+}
+
+func (m *ExampleModel) ExampleTransaction() error {
+    // 调用连接池的 Begin() 方法创建新的 sql.Tx 对象
+    // 该对象表示正在进行中的数据库事务
+    tx, err := m.DB.Begin()
+    if err != nil {
+        return err
+    }
+
+    // 在事务上调用 Exec()，传入语句和参数
+    // 注意：tx.Exec() 是调用在新创建的事务对象上，而不是连接池
+    // 虽然这里使用 tx.Exec()，同样也可以使用 tx.Query() 和 tx.QueryRow()
+    _, err = tx.Exec("INSERT INTO ...")
+    if err != nil {
+        // 如果有任何错误，调用事务的 tx.Rollback() 方法
+        // 这将中止事务，且不会对数据库做任何更改
+        tx.Rollback()
+        return err
+    }
+
+    // 以同样的方式执行另一项事务操作。
+    _, err = tx.Exec("UPDATE ...")
+    if err != nil {
+        tx.Rollback()
+        return err
+    }
+
+    // 若无错误，通过 tx.Commit() 方法将事务中的语句提交到数据库
+    // 在函数返回前务必调用 Rollback() 或 Commit()
+    // 若不调用，连接将保持打开状态，不会归还给连接池
+    // 可能导致达到最大连接数限制或资源耗尽
+    err = tx.Commit()
+    return err
+}
+```
+
+事务（Transactions）在你需要将多个 SQL 语句作为一个**原子操作（atomic action）**执行时也非常有用。
+
+只要在发生任何错误时正确使用 `tx.Rollback()` 方法，事务就能保证以下两种结果之一成立：
+
+- 所有 SQL 语句都成功执行；
+- 或者所有 SQL 语句都不执行，数据库保持不变
+
+##### 管理连接
+
+`sql.DB` 连接池由两类连接组成：**空闲连接（idle）** 和 **正在使用的连接（in-use）**。
+
+默认情况下，数据库连接池对**最大打开连接数（open connections，包括 idle + in-use）没有限制**。
+
+但在默认情况下，连接池中允许的**最大空闲连接数（max idle connections）为 2 个**。
+
+你可以使用 `SetMaxOpenConns()` 和 `SetMaxIdleConns()` 方法来修改这些默认值，例如：
+
+```go
+db, err := sql.Open("mysql", *dsn)
+if err != nil {
+	log.Fatal(err)
+}
+
+// 设置最大并发打开的连接数（包括 idle + in-use）
+// 如果将该值设置为 <= 0，则表示不限制最大连接数
+// 当达到最大连接数且所有连接都在使用中时，如果需要新的连接，Go 会一直等待
+// 直到某个连接被释放并变为空闲状态
+// 从用户角度来看，这意味着 HTTP 请求可能会阻塞（hang），直到有可用连接
+db.SetMaxOpenConns(100)
+
+// 设置连接池中最大空闲连接数
+// 如果该值设置为 <= 0，则表示不保留任何空闲连接
+db.SetMaxIdleConns(5)
+```
+
+使用这些方法时需要注意一个问题：你的数据库本身通常也会对最大连接数设定一个**硬性限制（hard limit）**。
+
+例如，MySQL 的默认最大连接数是 151。
+
+因此，如果将 `SetMaxOpenConns()` 设置为完全不限制，或者设置得高于 151，那么在高负载情况下，数据库可能会返回 **“too many connections（连接过多）”** 的错误。
+
+为了避免这种情况，你需要将最大连接数设置在一个**明显低于 151 的安全范围内**。
+
+但这又会带来另一个问题：当达到 `SetMaxOpenConns()` 的上限时，应用程序需要执行的新的数据库操作就必须等待，直到有连接被释放。
+
+对于某些类型的应用来说，这种等待行为可能是可以接受的，但在 Web 应用中，通常更合理的做法是：
+
+直接记录 “too many connections” 错误，并向用户返回 **500 Internal Server Error**，而不是让 HTTP 请求一直阻塞等待连接释放，甚至最终超时。
+
+##### 预处理语句
+
+正如前面提到的，`Exec()`、`Query()` 和 `QueryRow()` 这些方法在底层都会使用**预处理语句（prepared statements）**来帮助防止 SQL 注入攻击。
+
+它们会在数据库连接上创建一个预处理语句，使用提供的参数执行它，然后再关闭这个语句。
+
+从表面来看，这种方式可能显得有些低效，因为同一个 prepared statement 会被不断地重复创建和销毁。
+
+理论上来说，一个更高效的做法是使用 `DB.Prepare()` 方法，自己创建一次 prepared statement，然后重复使用它。
+
+这种方式在以下场景中特别有意义：
+
+- 复杂的 SQL 语句（例如包含多个 JOIN）
+- 被频繁执行的操作（例如批量插入成千上万条记录）
+
+在这些情况下，反复重新准备语句的开销可能会对运行性能产生明显影响。
+
+下面是一个在 Web 应用中使用自定义 prepared statement 的基本模式：
+
+```go
+// 我们需要在 Web 应用的生命周期内存储预编译语句
+// 一种简洁的方式是将其与连接池一起嵌入
+type ExampleModel struct {
+    DB         *sql.DB
+    InsertStmt *sql.Stmt
+}
+
+// 为模型创建构造函数，在其中设置预编译语句
+func NewExampleModel(db *sql.DB) (*ExampleModel, error) {
+    // 使用 Prepare 方法为当前连接池创建新的预编译语句
+    // 该方法返回一个 sql.Stmt 对象，表示预编译语句
+    insertStmt, err := db.Prepare("INSERT INTO ...")
+    if err != nil {
+        return nil, err
+    }
+
+    // 将其与连接池一起存储在 ExampleModel 对象中
+    return &ExampleModel{db, insertStmt}, nil
+}
+
+// 针对 ExampleModel 对象实现的任何方法都可以访问预编译语句
+func (m *ExampleModel) Insert(args ...any) error {
+    // 注意这里直接调用预编译语句的 Exec 方法，而不是连接池
+    // 预编译语句同样支持 Query 和 QueryRow 方法
+    _, err := m.InsertStmt.Exec(args...)
+    return err
+}
+
+// 在 Web 应用的 main 函数中，需要使用构造函数初始化新的 ExampleModel 结构体
+func main() {
+    db, err := sql.Open(...)
+    if err != nil {
+        errorLog.Fatal(err)
+    }
+    defer db.Close()
+
+    // 创建包含预编译语句的 ExampleModel 对象
+    exampleModel, err := NewExampleModel(db)
+    if err != nil {
+        errorLog.Fatal(err)
+    }
+
+    // 延迟调用预编译语句的 Close 方法，确保在 main 函数终止前正确关闭
+    defer exampleModel.InsertStmt.Close()
+}
+```
+
+不过这里也有一些需要注意的点。
+
+预处理语句（prepared statements）是绑定在**具体数据库连接（connection）**上的。
+
+由于 Go 使用的是一个数据库连接池（connection pool），实际发生的情况是：
+
+第一次使用某个 `sql.Stmt` 预处理语句时，它会在某一个具体的数据库连接上被创建。
+
+随后，这个 `sql.Stmt` 会记住它当时使用的是哪一个连接。
+
+下一次使用时，它会尝试继续使用同一个连接。
+
+但如果该连接已经被关闭，或者当前正在被使用（不是空闲状态），那么这个语句就会在另一个连接上被重新创建（re-prepare）。
+
+在高并发负载情况下，可能会出现大量预处理语句分布在多个连接上的情况。
+
+这可能导致语句的编译和重新编译比预期更频繁，甚至可能触及数据库服务器的限制。
+
+例如，在 MySQL 中，默认允许的最大 prepared statements 数量是 16,382。
+
+此外，使用自定义 prepared statements 会让代码变得比直接使用普通方法更加复杂。
+
+因此，在性能和复杂性之间需要做权衡（trade-off）。
+
+和大多数优化一样，应该通过实际测试来判断引入 prepared statements 是否真的带来性能提升。
+
+对于大多数情况来说，直接使用 `Query()`、`QueryRow()` 和 `Exec()` 方法，而不手动管理 prepared statements，是一个合理的起点。
+
+
 
 ### 5. 动态 HTML 模板
+
+---
+
+
+
+
 
 #### 5.1. 显示动态数据
 
