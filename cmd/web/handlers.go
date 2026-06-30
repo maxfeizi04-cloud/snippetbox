@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,9 +15,10 @@ import (
 // 在 application 结构体中添加 snippets 字段
 // 这将使 SnippetModel 对象在 handlers 中可用
 type application struct {
-	errorLog *log.Logger
-	infoLog  *log.Logger
-	snippets *mysql.SnippetModel
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	snippets      *mysql.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
@@ -31,33 +33,9 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, snippet := range s {
-		fmt.Fprintf(w, "%v\n", snippet)
-	}
-
-	// 初始化一个包含两个文件路径的切片
-	// 注意，home.page.tmpl 文件必须是切片中的 *第一个* 文件。
-	//files := []string{
-	//	"./ui/html/home.page.tmpl",
-	//	"./ui/html/base.layout.tmpl",
-	//	"./ui/html/footer.partial.tmpl",
-	//}
-
-	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
-	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
-	//// 500 Internal Server Error 响应
-	//ts, err := template.ParseFiles(files...)
-	//if err != nil {
-	//	app.serverError(w, err)
-	//	return
-	//}
-
-	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
-	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
-	//err = ts.Execute(w, nil)
-	//if err != nil {
-	//	app.serverError(w, err)
-	//}
+	app.render(w, r, "home.page.tmpl", &templateData{
+		Snippets: s,
+	})
 }
 
 func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
@@ -78,8 +56,11 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	// 将 snippet 数据作为纯文本 HTTP 响应体写入
-	fmt.Fprintf(w, "%v", s)
+
+	app.render(w, r, "show.page.tmpl", &templateData{
+		Snippet: s,
+	})
+
 }
 
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
