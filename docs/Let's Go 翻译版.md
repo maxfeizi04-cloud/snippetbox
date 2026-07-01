@@ -2993,7 +2993,6 @@ if err != nil {
 
 请打开项目中的 `main.go` 文件，并添加如下代码：
 
-````
 File: cmd/web/main.go
 ```
 
@@ -4112,45 +4111,2434 @@ func main() {
 
 ---
 
+在本节中，我们将重点学习如何将 MySQL 数据库中的**动态数据**展示到真正的 HTML 页面中。
 
+你将学习以下内容：
+
+- 如何以一种**简单、可扩展且类型安全（type-safe）**的方式，将动态数据传递给 HTML 模板。
+- 如何使用 Go `html/template` 包提供的各种模板动作（actions）和函数（functions），控制动态数据在页面中的展示。
+- 如何创建**模板缓存（template cache）**，避免每次收到 HTTP 请求时都重新从磁盘读取模板文件，从而提升性能。
+- 如何在运行时优雅地处理模板渲染过程中发生的错误。
+- 如何实现一种模式，在不重复代码的情况下，向多个网页传递公共的动态数据。
+- 如何编写自己的自定义模板函数，对 HTML 模板中的数据进行格式化和展示。
 
 
 
 #### 5.1. 显示动态数据
 
+---
+
+目前，我们的 `showSnippet` 处理器（handler）函数会从数据库中获取一个 `models.Snippet` 对象，然后将其中的数据直接以纯文本（plain-text）HTTP 响应的形式返回给客户端。
+
+在本节中，我们将对其进行改造，使这些数据能够显示在一个真正的 HTML 网页中，其效果大致如下所示：
+
+![image-20260629215328556](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260629215328556.png)
+
+让我们先从 `showSnippet` 处理器（handler）开始，添加一段代码，用于渲染一个新的 `show.page.tmpl` 模板文件（稍后我们将创建该文件）。
+
+如果你之前阅读过本书前面的内容，那么这段代码对你来说应该不会陌生。
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+...
+
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		app.notFound(w)
+		return
+	}
+
+	// 使用 SnippetModel 对象的 Get 方法，根据 ID 检索特定记录的数据。
+	// 如果未找到匹配记录，则返回 404 Not Found 响应
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	// 初始化一个包含 show.page.tmpl 文件路径的切片
+	// 以及之前创建的 base 布局和 footer 局部模板
+	files := []string{
+		"./ui/html/show.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+	// 解析模板文件...
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	// 然后执行模板
+	// 注意这里将 snippet 数据（models.Snippet 结构体）作为最后一个参数传入
+	err = ts.Execute(w, s)
+	if err != nil {
+		app.serverError(w, err)
+	}
+	
+}
+
+...
+```
+
+接下来，我们需要创建 `show.page.tmpl` 文件，并在其中编写页面所需的 HTML 标记。不过，在开始之前，我需要先介绍一点相关的理论知识。
+
+在 HTML 模板中，你传递给模板的动态数据统一由 `.`（读作 *dot*）表示。
+
+在本例中，`.` 的底层类型是 `models.Snippet` 结构体。当 `.` 的底层类型是一个结构体时，可以通过在 `.` 后面追加字段名来访问并输出该结构体中任意**导出字段（exported field）**的值。
+
+例如，`models.Snippet` 结构体中包含一个 `Title` 字段，那么在模板中只需编写 `{{.Title}}`，即可输出该代码片段的标题。
+
+下面通过一个示例来演示这一点。
+
+请在 `ui/html/` 目录下创建一个名为 `show.page.tmpl` 的新文件，并添加如下 HTML 标记：
+
+```bash
+$ type nul > ui/html/show.page.tmpl 
+```
+
+```
+File: ui/html/show.page.tmpl
+```
+
+```html
+{{template "base"}}
+
+{{define "title"}}Snippet #{{.ID}}{{end}}
+
+{{define "main"}}
+<div class='snippet'>
+    <div class='metadata'>
+        <strong>{{.Title}}</strong>
+        <span>#{{.ID}}</span>
+    </div>
+    <pre><code>{{.Content}}</code></pre>
+    <div class='metadata'>
+        <time>Created: {{.Created}}</time>
+        <time>Expires: {{.Expires}}</time>
+    </div>
+</div>
+{{end}}
+```
+
+重新启动应用程序后，在浏览器中访问 `http://localhost:4000/snippet?id=1`，你应该可以看到对应的代码片段已从数据库中成功获取，并传递给模板进行渲染，最终页面能够正确显示其内容。
+
+![image-20260629222210991](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260629222210991.png)
+
+##### 渲染多条数据
+
+需要特别说明的是，Go 的 `html/template` 包在渲染模板时，只允许传入**一个**动态数据对象，而不能同时传入多个独立的数据对象。
+
+然而，在实际开发中，一个页面通常需要展示多种不同的动态数据。
+
+一种轻量且类型安全的解决方案是：将这些动态数据封装到一个结构体中，让该结构体作为统一的数据载体（holding structure），然后将这个结构体传递给模板。
+
+接下来，在 `cmd/web/` 目录下创建一个新的 `templates.go` 文件，并定义一个 `templateData` 结构体来实现这一目的。
+
+```bash
+$ type nul > cmd/web/templates.go
+```
+
+```
+File: cmd/web/templates.go
+```
+
+```go
+package main
+
+import "github.com/maxfeizi04-cloude/snippetbox/pkg/models"
+
+// 定义 templateData 类型，作为向 HTML 模板传递动态数据的载体结构体
+// 目前它只包含一个字段，但随着构建的推进，我们会继续添加更多字段
+type templateData struct {
+	Snippet *models.Snippet
+}
+```
+
+接下来，修改 `showSnippet` 处理器（handler），使其在执行模板渲染时使用这个新的 `templateData` 结构体：
+
+```go
+...
+
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		app.notFound(w)
+		return
+	}
+
+	// 使用 SnippetModel 对象的 Get 方法，根据 ID 检索特定记录的数据。
+	// 如果未找到匹配记录，则返回 404 Not Found 响应
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	// 创建一个包含 snippet 数据的 templateData 结构体实例
+	data := &templateData{Snippet: s}
+	// 初始化一个包含 show.page.tmpl 文件路径的切片
+	// 以及之前创建的 base 布局和 footer 局部模板
+	files := []string{
+		"./ui/html/show.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+	// 解析模板文件...
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	// 然后执行模板
+	// 注意这里将 snippet 数据（models.Snippet 结构体）作为最后一个参数传入
+	err = ts.Execute(w, data)
+	if err != nil {
+		app.serverError(w, err)
+	}
+
+}
+```
+
+现在，代码片段（snippet）的数据已经存放在 `templateData` 结构体中的 `models.Snippet` 结构体里。
+
+因此，在模板中输出这些数据时，需要依次访问相应的字段，即将字段名链式连接起来，例如：
+
+```
+File: ui/html/show.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Snippet #{{.Snippet.ID}}{{end}}
+
+{{define "main"}}
+<div class='snippet'>
+    <div class='metadata'>
+        <strong>{{.Snippet.Title}}</strong>
+        <span>#{{.Snippet.ID}}</span>
+    </div>
+    <pre><code>{{.Snippet.Content}}</code></pre>
+    <div class='metadata'>
+        <time>Created: {{.Snippet.Created}}</time>
+        <time>Expires: {{.Snippet.Expires}}</time>
+    </div>
+</div>
+{{end}}
+```
+
+你可以随时重启应用程序，并再次访问 `http://localhost:4000/snippet?id=1`。
+
+此时，你应该会在浏览器中看到与之前完全相同的页面渲染效果。
+
+##### 附加信息
+
+**动态内容转义**
+
+`html/template` 包会自动对 `{{ }}` 标签中输出的所有动态数据进行 **HTML 转义（escaping）**。
+
+这一特性对于防范**跨站脚本攻击（Cross-Site Scripting，XSS）**至关重要，因此，在生成 HTML 页面时，应当使用 `html/template` 包，而不是 Go 同时提供的、更通用的 `text/template` 包。
+
+例如，假设需要输出的动态数据为：
+
+```html
+<span>{{"<script>alert('xss attack')</script>"}}</span>
+```
+
+那么，在页面中它会被自动转义，并安全地渲染为：
+
+```html
+<span>&lt;script&gt;alert(&#39;xss attack&#39;)&lt;/script&gt;</span>
+```
+
+`html/template` 包还具有**上下文感知（context-aware）**的能力，能够根据数据所处的上下文自动选择合适的转义方式。
+
+也就是说，如果动态数据被渲染到 HTML、CSS、JavaScript 或 URI 等不同的位置，`html/template` 都会采用相应的转义规则，以确保输出内容既安全又符合相应的语法规范。
+
+**嵌套模板**
+
+需要特别注意的是，当一个模板调用另一个模板时，必须显式地将 `.`（dot）传递（或通过管道传递）给被调用的模板。
+
+实现方式是在每个 `{{template}}` 或 `{{block}}` 动作的末尾添加 `.`，例如：
+
+```html
+{{template "base" .}}
+{{template "main" .}}
+{{template "footer" .}}
+{{block "sidebar" .}}{{end}}
+```
+
+建议养成一个良好的习惯：**只要使用 `{{template}}` 或 `{{block}}` 动作调用其他模板，就始终将 `.`（dot）通过管道传递给被调用的模板**，除非你有充分的理由不这样做。
+
+**调用方法**
+
+如果要输出的对象定义了方法，那么也可以在模板中直接调用这些方法。但需要满足以下两个条件：
+
+- 方法必须是**导出的（exported）**
+- 方法只能返回**一个值**，或者返回**一个值和一个 `error`**
+
+例如，`.Snippet.Created` 的底层类型是 `time.Time`（本例中确实如此），因此可以直接调用它的 `Weekday()` 方法来输出星期几，写法如下：
+
+```html
+<span>{{.Snippet.Created.Weekday}}</span>
+```
+
+例如，可以调用 `AddDate()` 方法，为某个时间增加 6 个月，写法如下：
+
+```html
+<span>{{.Snippet.Created.AddDate 0 6 0}}</span>
+```
+
+需要注意的是，这种写法与 Go 语言中调用函数的语法有所不同。
+
+在模板中调用方法时，**参数不需要使用括号包裹**，并且**多个参数之间使用空格分隔，而不是逗号**。
+
+**HTML 评论**
+
+最后，`html/template` 包会自动移除模板中的所有 HTML 注释，包括**条件注释（conditional comments）**。
+
+这样设计的目的是为了进一步防范**跨站脚本攻击（XSS）**。如果允许保留条件注释，Go 将无法始终准确判断浏览器最终会如何解析页面中的 HTML 标记，因此也就无法保证对所有动态内容都进行正确的转义。
+
+为了解决这一问题，Go 采取了一个简单而安全的策略：**直接移除模板中的所有 HTML 注释**。
+
+
+
 #### 5.2. 模板操作和函数
+
+---
+
+在本节中，我们将介绍 Go 模板提供的**模板动作（template actions）**和**模板函数（template functions）**。
+
+前面我们已经介绍过几个模板动作——`{{define}}`、`{{template}}` 和 `{{block}}`。
+
+除此之外，还有三个非常重要的模板动作，可用于控制动态数据的显示，它们分别是：`{{if}}`、`{{with}}` 和 `{{range}}`。
+
+| Action                                | Description                                                  |
+| ------------------------------------- | :----------------------------------------------------------- |
+| {{if .Foo}} C1 {{else}} C2 {{end}}    | 如果 `.Foo` 不为空，则渲染内容 C1；否则渲染内容 C2           |
+| {{with .Foo}} C1 {{else}} C2 {{end}}  | 如果 `.Foo` 不为空，则将 `.`（dot）设置为 `.Foo` 的值，并渲染内容 C1；否则渲染内容 C2 |
+| {{range .Foo}} C1 {{else}} C2 {{end}} | 如果 `.Foo` 的长度大于 0，则遍历其中的每一个元素，并在每次迭代时将 `.`（dot）设置为当前元素的值，然后渲染内容 C1。如果 `.Foo` 的长度为 0，则渲染内容 C2。需要注意的是，`.Foo` 的底层类型必须是数组（array）、切片（slice）、映射（map）或通道（channel） |
+
+关于这些模板动作，有几点需要注意：
+
+首先，对于这三个动作来说，`{{else}}` 分支都是可选的。例如，如果没有需要渲染的 C2 内容，你可以直接写成 `{{if .Foo}} C1 {{end}}`。
+
+其次，“空值（empty values）”在模板判断中会被视为 false，包括：false、0、任何 nil 指针或接口值，以及长度为 0 的数组、切片、map 或字符串。
+
+另外，需要特别理解的是，`with` 和 `range` 动作会改变 `.`（dot）的值。一旦开始使用它们，`.` 所代表的数据在模板的不同位置可能会发生变化，这取决于当前所处的作用域以及执行的上下文。
+
+最后，`html/template` 包还提供了一些**模板函数（template functions）**，可以用来在运行时为模板增加额外逻辑，从而控制最终渲染的内容。完整的函数列表可以在官方文档中查看，但其中最常用、最重要的函数如下：
+
+| Functions                    | Description                                                  |
+| ---------------------------- | ------------------------------------------------------------ |
+| {{eq .Foo .Bar}}             | 如果 `.Foo` 等于 `.Bar`，则返回 true                         |
+| {{ne .Foo .Bar}}             | 如果 `.Foo` 不等于 `.Bar`，则返回 true                       |
+| {{not .Foo}}                 | 返回 `.Foo` 的布尔取反结果                                   |
+| {{index .Foo i}}             | 返回 `.Foo` 在索引 `i` 处的值。需要注意的是，`.Foo` 的底层类型必须是 map、切片（slice）或数组（array） |
+| {{printf "%s-%s" .Foo .Bar}} | 返回一个格式化后的字符串，其中包含 `.Foo` 和 `.Bar` 的值。其行为与 `fmt.Sprintf()` 相同 |
+| {{len .Foo}}                 | 返回 `.Foo` 的长度，类型为整数                               |
+| {{or .Foo .Bar}}             | 如果 `.Foo` 不为空，则返回 `.Foo`；否则返回 `.Bar`           |
+| {{$bar := len .Foo}}         | 将 `.Foo` 的长度赋值给模板变量 `$bar`                        |
+
+最后一行是一个模板变量声明的示例。
+
+模板变量在以下场景中特别有用：当你希望保存某个函数的执行结果，并在模板的多个位置重复使用时，可以通过变量来避免重复计算。
+
+变量名必须以 `$` 符号作为前缀，并且只能由字母和数字字符组成。
+
+##### 使用 with 动作
+
+在前一章中我们创建的 `show.page.tmpl` 文件，是一个使用 `{{with}}` 动作的很好场景。
+
+现在请按照如下方式对其进行更新：
+
+```
+File: ui/html/show.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Snippet #{{.Snippet.ID}}{{end}}
+
+{{define "main"}}
+    {{with .Snippet}}
+        <div class='snippet'>
+            <div class='metadata'>
+                <strong>{{.Title}}</strong>
+                <span>#{{.ID}}</span>
+            </div>
+            <pre><code>{{.Content}}</code></pre>
+            <div class='metadata'>
+                <time>Created: {{.Created}}</time>
+                <time>Expires: {{.Expires}}</time>
+            </div>
+        </div>
+    {{end}}
+{{end}}
+```
+
+因此，在 `{{with .Snippet}}` 与对应的 `{{end}}` 标签之间，`.`（dot）的值会被重新设置为 `.Snippet`。
+
+也就是说，此时 `.` 不再表示外层的 `templateData` 结构体，而是变成了 `models.Snippet` 结构体本身。
+
+##### 使用 if 和 range 动作
+
+接下来，我们通过一个具体示例来使用 `{{if}}` 和 `{{range}}` 动作，并更新首页，使其能够以表格形式展示最新的代码片段列表，大致效果如下：
+
+![image-20260630120705215](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260630120705215.png)
+
+首先，更新 `templateData` 结构体，使其包含一个用于保存代码片段列表的 `Snippets` 字段，该字段类型为 `Snippet` 的切片（slice），如下所示：
+
+```
+File: cmd/web/templates.go
+```
+
+```go
+package main
+
+import "github.com/maxfeizi04-cloude/snippetbox/pkg/models"
+
+// 定义 templateData 类型，作为向 HTML 模板传递动态数据的载体结构体
+// 目前它只包含一个字段，但随着构建的推进，我们会继续添加更多字段
+type templateData struct {
+	Snippet  *models.Snippet
+	Snippets []*models.Snippet
+}
+```
+
+然后，更新 `home` 处理器（handler）函数，使其从数据库模型中获取最新的代码片段列表，并将其传递给 `home.page.tmpl` 模板：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	data := &templateData{Snippets: s}
+
+	// 初始化一个包含两个文件路径的切片
+	// 注意，home.page.tmpl 文件必须是切片中的 *第一个* 文件。
+	files := []string{
+		"./ui/html/home.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+
+	// 使用 template.ParseFiles() 函数将模板文件读取到模板集中
+	// 如果出错，记录详细错误信息并使用 http.Error() 函数向用户发送
+	//// 500 Internal Server Error 响应
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// 然后使用模板集的 Execute() 方法将模板内容写入响应体
+	// Execute() 的最后一个参数用于传入动态数据，目前暂设为 nil
+	err = ts.Execute(w, data)
+	if err != nil {
+		app.serverError(w, err)
+	}
+}
+```
+
+现在，让我们进入 `ui/html/home.page.tmpl` 文件，并更新模板，使其使用 `{{if}}` 和 `{{range}}` 动作来以表格形式展示这些代码片段。
+
+具体逻辑如下：
+
+- 使用 `{{if}}` 判断 snippets 切片是否为空  
+- 如果为空，则显示一条提示信息：“There’s nothing to see here yet!”
+- 否则，渲染一个包含代码片段信息的表格
+- 使用 `{{range}}` 遍历 snippets 切片中的每一个元素，并将每个代码片段渲染为表格中的一行
+
+对应的模板代码如下：
+
+```
+File: ui/html/home.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Home{{end}}
+
+{{define "main"}}
+    <h2>Latest Snippet</h2>
+    {{if .Snippets}}
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Create</th>
+            <th>ID</th>
+        </tr>
+        {{range .Snippets}}
+        <tr>
+            <td><a href='/snippet?id={{.ID}}'>{{.Title}}</a> </td>
+            <td>{{.Create}}</td>
+            <td>#{{.ID}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{else}}
+        <p>There's nothing to see here yet!</p>
+    {{end}}
+{{end}}
+```
+
+请确保所有文件都已保存，然后重启应用程序，并在浏览器中访问 `http://localhost:4000`。
+
+如果一切顺利，你应该会看到一个页面，其效果大致如下：
+
+![image-20260630121956582](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260630121956582.png)
+
+
 
 #### 5.3. 缓存模板
 
+---
+
+在继续为 HTML 模板添加更多功能之前，是时候对现有代码进行一些优化了。目前主要存在两个问题：
+
+1. 每次渲染网页时，应用程序都会调用 `template.ParseFiles()` 重新读取并解析相关模板文件。我们可以通过优化这一点来避免重复工作：在应用程序启动时一次性解析所有模板文件，并将解析结果存入内存缓存中。
+2. 在 `home` 和 `showSnippet` 两个处理器中存在重复代码，我们可以通过抽象一个辅助函数来减少这种重复。
+
+
+我们先解决第一个问题：创建一个用于缓存已解析模板的内存 `map`，其类型为 `map[string]*template.Template`。
+
+接下来，打开 `cmd/web/templates.go` 文件，并添加如下代码：
+
+```
+File: cmd/web/templates.go
+```
+
+```go
+func newTemplateCache(dir string) (map[string]*template.Template, error) {
+	// 初始化一个新的 map 作为缓存
+	cache := map[string]*template.Template{}
+
+	// 使用 filepath.Glob 函数获取所有扩展名为 '.page.tmpl' 的文件路径切片
+	// 这本质上给了我们一个应用中所有 '页面' 模板的切片
+	pages, err := filepath.Glob(filepath.Join(dir, "*.page.tmpl"))
+	if err != nil {
+		return nil, err
+	}
+
+	// 逐个遍历所有页面
+	for _, page := range pages {
+		// 从完整文件路径中提取文件名（如 'home.page.tmpl'）
+		// 并将其赋值给 name 变量
+		name := filepath.Base(page)
+
+		// 将页面模板文件解析为一个模板集合
+		ts, err := template.ParseFiles(page)
+		if err != nil {
+			return nil, err
+		}
+
+		// 使用 ParseGlob 方法将所有 '布局' 模板添加到模板集合中
+		// (在我们的例子中，目前只有一个 'base' 布局)
+		ts, err = ts.ParseGlob(filepath.Join(dir, "*.layout.tmpl"))
+		if err != nil {
+			return nil, err
+		}
+
+		// 使用 ParseGlob 方法将所有 '局部' 模板添加到模板集合中
+		// (在我们的例子中，目前只有一个 'footer' 局部模板)
+		ts, err = ts.ParseGlob(filepath.Join(dir, "*.partial.tmpl"))
+		if err != nil {
+			return nil, err
+		}
+		// 将模板集合添加到缓存中，使用页面名称(如 'home.page.tmpl')作为键
+		cache[name] = ts
+	}
+
+	return cache, nil
+}
+```
+
+下一步是在 `main()` 函数中初始化这个模板缓存，并通过 `application` 结构体将其作为依赖传递给各个处理器（handlers），具体如下：
+
+```
+File: cmd/web/Handlers.go
+```
+
+```go
+type application struct {
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	snippets      *mysql.SnippetModel
+	templateCache map[string]*template.Template
+}
+```
+
+```
+File: cmd/web/main.go
+```
+
+```go
+func main() {
+
+	addr := flag.String("addr", ":4000", "HTTP network address")
+	dsn := flag.String("dsn", "web:pass@tcp(localhost:3306)/snippetbox?parseTime=true", "MySQL data source name")
+	flag.Parse()
+
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	// 为保持 main() 函数简洁，我将创建连接池的代码放到了下面的 openDB() 函数中
+	// 我们将命令行标志中的 DSN 传给 openDB()
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	// 我们还延迟调用 db.Close()
+	// 以确保在 main() 函数退出前关闭连接池
+	defer db.Close()
+
+	templateCache, err := newTemplateCache("./ui/html/")
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+	
+	app := &application{
+		infoLog:  infoLog,
+		errorLog: errorLog,
+		snippets: &mysql.SnippetModel{DB: db},
+		templateCache: templateCache,
+	}
+
+	// 初始化一个新的 http.Server 结构体。设置 Addr 和 Handler 字段
+	// 使服务器使用与之前相同的网络地址和路由，并设置 ErrorLog 字段
+	// 以便服务器在出现任何问题时使用自定义的 errorLog logger
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  app.routes(),
+	}
+
+	infoLog.Printf("Starting server on %s", *addr)
+	// 因为 err 变量在上面的代码中已经声明过了，所以这里需要使用赋值运算符 =，
+	// 而不能使用 :=（声明并赋值）运算符
+	err = srv.ListenAndServe()
+	errorLog.Fatal(err)
+}
+```
+
+因此，到目前为止，我们已经为每个页面构建了一个对应的模板集合的内存缓存，并且各个处理器（handlers）也可以通过 `application` 结构体访问这个缓存。
+
+接下来，我们处理第二个问题：消除重复代码，并创建一个辅助方法，使我们能够更方便地从缓存中渲染模板。
+
+请打开 `cmd/web/helpers.go` 文件，并添加如下方法：
+
+```
+File: cmd/web/helpers.go
+```
+
+```go
+func (app *application) render(w http.ResponseWriter, r *http.Request, name string, td *templateData) {
+	// 根据页面名称（如 'home.page.tmpl'）从缓存中检索对应的模板集合
+	// 如果在缓存中找不到指定名称的条目，就调用之前创建的 serverError 辅助方法
+	ts, ok := app.templateCache[name]
+	if !ok {
+		app.serverError(w, fmt.Errorf("%s not found", name))
+		return
+	}
+	
+	// 执行模板集合，传入任何动态数据
+	err := ts.Execute(w, td)
+	if err != nil {
+		app.serverError(w, err)
+	}
+}
+```
+
+此时你可能会疑惑：为什么 `render()` 方法的函数签名中包含了一个 `*http.Request` 参数……但在当前实现中却并没有使用它。
+
+这只是为了让方法签名具备一定的**前瞻性（future-proof）**。因为在本书后续的内容中，我们会需要用到这个请求对象，所以提前保留了这个参数。
+
+完成这些改造之后，我们就可以看到优化带来的效果，并且能够显著简化处理器（handlers）中的代码：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+...
+
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.render(w, r, "home.page.tmpl", &templateData{
+		Snippets: s,
+	})
+}
+
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		app.notFound(w)
+		return
+	}
+
+	// 使用 SnippetModel 对象的 Get 方法，根据 ID 检索特定记录的数据。
+	// 如果未找到匹配记录，则返回 404 Not Found 响应
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	app.render(w, r, "show.page.tmpl", &templateData{
+		Snippet: s,
+	})
+
+}
+
+...
+```
+
+
+
 #### 5.4. 捕获运行时错误
+
+---
+
+一旦我们开始在 HTML 模板中引入动态行为，就有可能在运行时遇到错误。
+
+接下来，我们在 `show.page.tmpl` 模板中故意添加一个错误，看看会发生什么：
+
+```
+File: ui/html/show.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Snippet #{{.Snippet.ID}}{{end}}
+
+{{define "main"}}
+    {{with .Snippet}}
+        <div class='snippet'>
+            <div class='metadata'>
+                <strong>{{.Title}}</strong>
+                <span>#{{.ID}}</span>
+            </div>
+            {{len nil}} <!-- Deliberate error -->
+            <pre><code>{{.Content}}</code></pre>
+            <div class='metadata'>
+                <time>Created: {{.Created}}</time>
+                <time>Expires: {{.Expires}}</time>
+            </div>
+        </div>
+    {{end}}
+{{end}}
+```
+
+在上面的模板代码中，我们添加了这一行：`{{len nil}}`，它在运行时会触发错误，因为在 Go 语言中，`nil` 是没有长度的。
+
+现在尝试运行应用程序，你会发现程序依然可以正常编译通过。
+
+```bash
+go run ./cmd/web
+INFO    2026/06/30 13:34:26 Starting server on :4000
+```
+
+但是，如果你使用 `curl` 向 `http://localhost:4000/snippet?id=1` 发送请求，你会收到一个类似下面这样的响应：
+
+```bash
+$ curl -i http://localhost:4000/snippet?id=1
+HTTP/1.1 200 OK
+Date: Tue, 30 Jun 2026 05:35:22 GMT
+Content-Length: 797
+Content-Type: text/html; charset=utf-8
+
+
+<!doctype html>
+<html lang='en'>
+    <head>
+        <meta charset='utf-8'>
+        <title>Snippet #1 - Snippetbox</title>
+        <link rel='stylesheet' href='/static/css/main.css'>
+        <link rel="shortcut icon" href='/static/img/favicon.ico' type="image/x-icon">
+        <link rel="stylesheet" href='https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700'>
+    </head>
+    <body>
+        <header>
+            <h1><a href='/'>Snippetbox</a> </h1>
+        </header>
+        <nav>
+            <a href='/'>Home</a>
+        </nav>
+        <main>
+
+
+        <div class='snippet'>
+            <div class='metadata'>
+                <strong>An old silent pond</strong>
+                <span>#1</span>
+            </div>
+            Internal Server Error
+```
+
+
+
+这种情况是非常糟糕的：应用程序已经发生了错误，但却仍然向用户返回了 **200 OK** 响应码。更严重的是，用户收到的是一个**不完整的 HTML 页面**。
+
+为了解决这个问题，我们需要将模板渲染改为一个**两阶段处理流程**：
+
+第一步，先进行“试渲染（trial render）”，将模板内容写入一个缓冲区（buffer）。如果这一步失败，我们可以直接向用户返回错误信息。
+
+第二步，如果试渲染成功，再将缓冲区中的内容写入 `http.ResponseWriter`，返回给客户端。
+
+接下来，我们将更新 `render` 辅助函数，使其采用这种实现方式：
+
+```
+File: cmd/web/helpers.go
+```
+
+```go
+...
+
+func (app *application) render(w http.ResponseWriter, r *http.Request, name string, td *templateData) {
+	// 根据页面名称（如 'home.page.tmpl'）从缓存中检索对应的模板集合
+	// 如果在缓存中找不到指定名称的条目，就调用之前创建的 serverError 辅助方法
+	ts, ok := app.templateCache[name]
+	if !ok {
+		app.serverError(w, fmt.Errorf("%s not found", name))
+		return
+	}
+
+	// 初始化一个新的缓冲区
+	buf := new(bytes.Buffer)
+
+	// 将模板写入缓冲区，而不是直接写入 http.ResponseWriter
+	// 如果出现错误，调用 serverError 辅助方法然后返回
+	err := ts.Execute(buf, td)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	
+	// 将缓冲区的内容写入 http.ResponseWriter
+	// 同样,这是我们将 http.ResponseWriter 传递给接受 io.Writer 的函数的另一次实践
+	buf.WriteTo(w)
+}
+
+...
+```
+
+重新启动应用程序，并再次发起相同的请求。
+
+此时，你应该会收到一个正确的错误提示，并返回 **500 Internal Server Error（服务器内部错误）** 响应。
+
+```bash
+$ curl -i http://localhost:4000/snippet?id=1
+HTTP/1.1 500 Internal Server Error
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+Date: Tue, 30 Jun 2026 05:42:08 GMT
+Content-Length: 22
+
+Internal Server Error
+```
+
+很好，这样处理后效果已经明显改善了。
+
+在进入下一章之前，请返回 `show.page.tmpl` 文件，并将之前添加的用于测试的错误代码删除：
+
+```
+File: ui/html/show.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Snippet #{{.Snippet.ID}}{{end}}
+
+{{define "main"}}
+    {{with .Snippet}}
+        <div class='snippet'>
+            <div class='metadata'>
+                <strong>{{.Title}}</strong>
+                <span>#{{.ID}}</span>
+            </div>
+            <pre><code>{{.Content}}</code></pre>
+            <div class='metadata'>
+                <time>Created: {{.Created}}</time>
+                <time>Expires: {{.Expires}}</time>
+            </div>
+        </div>
+    {{end}}
+{{end}}
+```
+
+
 
 #### 5.5. 常用动态数据
 
-#### 5.6. 创建数据库连接池
+---
+
+在一些 Web 应用中，可能存在一些通用的动态数据，需要在多个页面，甚至所有页面中展示。例如当前登录用户的名称与头像，或者表单中的 CSRF Token。
+
+在本例中，我们先实现一个简单的需求：在每个页面的页脚（footer）中显示**当前年份**。
+
+为此，我们首先在 `templateData` 结构体中新增一个 `CurrentYear` 字段，如下所示：
+
+```
+File: cmd/web/templates.go
+```
+
+```go
+...
+
+type templateData struct {
+	CurrentYear int
+	Snippet  *models.Snippet
+	Snippets []*models.Snippet
+}
+
+...
+```
+
+接下来，我们需要在 `application` 中新增一个 `addDefaultData()` 辅助方法，用于向 `templateData` 实例中注入当前年份。
+
+随后，我们可以在 `render()` 辅助函数中调用该方法，从而为每个页面自动添加这些默认数据。
+
+下面我来演示具体实现：
+
+```
+File: cmd/web/helpers.go
+```
+
+```go
+...
+
+// 创建一个 addDefaultData 辅助方法。该方法接收一个指向 templateData 结构体的指针
+// 将当前年份添加到 CurrentYear 字段中，然后返回该指针
+// 目前我们还没有使用 *http.Request 参数，但在本书后面会用到
+func (app *application) addDefaultData(td *templateData, r *http.Request) *templateData {
+	if td == nil {
+		td = &templateData{}
+	}
+	td.CurrentYear = time.Now().Year()
+	return td
+}
+
+func (app *application) render(w http.ResponseWriter, r *http.Request, name string, td *templateData) {
+	// 根据页面名称（如 'home.page.tmpl'）从缓存中检索对应的模板集合
+	// 如果在缓存中找不到指定名称的条目，就调用之前创建的 serverError 辅助方法
+	ts, ok := app.templateCache[name]
+	if !ok {
+		app.serverError(w, fmt.Errorf("the template %s does not exist", name))
+		return
+	}
+
+	// 初始化一个新的缓冲区
+	buf := new(bytes.Buffer)
+
+	// 将模板写入缓冲区，而不是直接写入 http.ResponseWriter
+	// 如果出现错误，调用 serverError 辅助方法然后返回
+	err := ts.Execute(buf, app.addDefaultData(td, r))
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// 将缓冲区的内容写入 http.ResponseWriter
+	// 同样,这是我们将 http.ResponseWriter 传递给接受 io.Writer 的函数的另一次实践
+	buf.WriteTo(w)
+}
+
+...
+```
+
+现在，我们只需要更新 `ui/html/footer.partial.tmpl` 文件，使其能够显示年份，如下所示：
+
+```
+File: ui/html/footer.partial.tmpl
+```
+
+```html
+{{define "footer"}}
+<footer>Powered by <a href="https://baidu.com/">Go</a>in {{.CurrentYear}} </footer>
+{{end}}
+```
+
+重启应用程序，并访问主页 `http://localhost:4000`。
+
+此时，你应该会在页面的页脚中看到当前年份的显示，如下所示：
+
+![image-20260630135735833](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260630135735833.png)
+
+
+
+#### 5.6. 自定义模板函数
+
+---
+
+在本节关于模板和动态数据的最后一部分，我们将介绍如何在 Go 模板中创建并使用**自定义模板函数（custom template functions）**。
+
+为了演示这一点，我们将创建一个名为 `humanDate()` 的自定义函数，用于以更符合阅读习惯的格式输出日期时间。例如，将日期显示为 `2006-01-02 15:04:05`，而不是当前默认输出的 `2019-01-02 15:04:00 +0000 UTC`。
+
+实现这一功能主要分为两个步骤：
+
+1. 创建一个 `template.FuncMap` 对象，并将自定义的 `humanDate()` 函数注册到其中。
+2. 在解析模板之前，调用 `template.Funcs()` 方法注册这些自定义函数。
+
+
+现在，请在 `templates.go` 文件中添加如下代码：
+
+```
+File: cmd/web/templates.go
+```
+
+```go
+...
+
+// 创建一个 humanDate 函数，返回 time.Time 对象的格式化字符串表示
+func humanDate(t time.Time) string {
+	return t.Format("2006-01-02 15:04:05")
+}
+
+// 初始化一个 template.FuncMap 对象并存储在全局变量中
+// 这本质上是一个字符串键的 map，用于自定义模板函数名称与实际函数之间的查找
+var functions = template.FuncMap{
+	"humanDate": humanDate,
+}
+
+func newTemplateCache(dir string) (map[string]*template.Template, error) {
+	// 初始化一个新的 map 作为缓存
+	cache := map[string]*template.Template{}
+
+	// 使用 filepath.Glob 函数获取所有扩展名为 '.page.tmpl' 的文件路径切片
+	// 这本质上给了我们一个应用中所有 '页面' 模板的切片
+	pages, err := filepath.Glob(filepath.Join(dir, "*.page.tmpl"))
+	if err != nil {
+		return nil, err
+	}
+
+	// 逐个遍历所有页面
+	for _, page := range pages {
+		// 从完整文件路径中提取文件名（如 'home.page.tmpl'）
+		// 并将其赋值给 name 变量
+		name := filepath.Base(page)
+
+		// template.FuncMap 必须在调用 ParseFiles() 方法之前注册到模板集中
+		// 这意味着我们必须使用 template.New() 创建一个空的模板集，
+		// 使用 Funcs() 方法注册 template.FuncMap，
+		// 然后正常解析文件
+		ts, err := template.New(name).Funcs(functions).ParseFiles(page)
+		if err != nil {
+			return nil, err
+		}
+
+		// 使用 ParseGlob 方法将所有 '布局' 模板添加到模板集合中
+		// (在我们的例子中，目前只有一个 'base' 布局)
+		ts, err = ts.ParseGlob(filepath.Join(dir, "*.layout.tmpl"))
+		if err != nil {
+			return nil, err
+		}
+
+		// 使用 ParseGlob 方法将所有 '局部' 模板添加到模板集合中
+		// (在我们的例子中，目前只有一个 'footer' 局部模板)
+		ts, err = ts.ParseGlob(filepath.Join(dir, "*.partial.tmpl"))
+		if err != nil {
+			return nil, err
+		}
+		// 将模板集合添加到缓存中，使用页面名称(如 'home.page.tmpl')作为键
+		cache[name] = ts
+	}
+
+	return cache, nil
+}
+```
+
+在继续之前，需要说明一点：**自定义模板函数**（例如我们的 `humanDate()` 函数）可以接收任意数量的参数，但**只能返回一个值**。
+
+唯一的例外是：函数可以返回**两个值**，其中第二个返回值必须是 `error` 类型，这种写法也是允许的。
+
+现在，我们就可以像使用内置模板函数一样，在模板中使用 `humanDate()` 函数了：
+
+```
+File: ui/html/home.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Home{{end}}
+
+{{define "main"}}
+    <h2>Latest Snippet</h2>
+    {{if .Snippets}}
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Create</th>
+            <th>ID</th>
+        </tr>
+        {{range .Snippets}}
+        <tr>
+            <td><a href='/snippet?id={{.ID}}'>{{.Title}}</a> </td>
+            <td>{{humanDate .Created}}</td>
+            <td>#{{.ID}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{else}}
+        <p>There's nothing to see here yet!</p>
+    {{end}}
+{{end}}
+```
+
+```
+File: ui/html/show.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Snippet #{{.Snippet.ID}}{{end}}
+
+{{define "main"}}
+    {{with .Snippet}}
+        <div class='snippet'>
+            <div class='metadata'>
+                <strong>{{.Title}}</strong>
+                <span>#{{.ID}}</span>
+            </div>
+            <pre><code>{{.Content}}</code></pre>
+            <div class='metadata'>
+                <time>Created: {{humanDate .Created}}</time>
+                <time>Expires: {{humanDate .Expires}}</time>
+            </div>
+        </div>
+    {{end}}
+{{end}}
+```
+
+完成以上修改后，重新启动应用程序。
+
+然后，在浏览器中分别访问 `http://localhost:4000` 和 `http://localhost:4000/snippet?id=1`，你应该会看到页面中的日期已经使用新的、更易于阅读的格式进行了显示。
+
+![image-20260630184045556](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260630184045556.png)
+
+![image-20260630184118238](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260630184118238.png)
+
+##### 附加信息
+
+**管道（Pipelining）**
+
+在上面的代码中，我们是这样调用自定义模板函数的：
+
+```html
+<time>Created: {{humanDate .Created}}</time>
+```
+
+另一种写法是使用 `|`（管道操作符，pipeline）将值传递给函数。
+
+这种方式与 Unix/Linux 终端中的管道（pipe）类似：前一个表达式的输出会作为后一个函数的输入。
+
+因此，上面的代码也可以改写为如下形式：
+
+```html
+<time>Created: {{.Created | humanDate}}</time>
+```
+
+管道（pipeline）的一个优点是：**可以将多个模板函数串联起来**，前一个函数的输出会自动作为后一个函数的输入，因此能够构建任意长度的函数调用链。
+
+例如，我们可以将 `humanDate` 函数的输出继续通过管道传递给内置的 `printf` 函数，写法如下：
+
+```html
+<time>{{.Created | humanDate | printf "Created: %s"}}</time>
+```
+
+
 
 ### 6. 中间件
 
+---
+
+在构建 Web 应用程序时，通常会有一些**通用功能**需要应用到许多（甚至所有）HTTP 请求中。例如：
+
+- 记录每一次请求的日志（Logging）；
+- 对所有响应进行压缩（Compression）；
+- 在请求进入处理器（Handler）之前先检查缓存（Cache）。
+
+组织这些通用功能的一种常见方式就是使用**中间件（Middleware）**。
+
+中间件本质上是一段**独立、可复用的代码**，它可以在请求到达应用程序处理器（Handler）之前或之后执行一些额外的逻辑，而无需修改各个处理器本身。
+
+在本节中，你将学习以下内容：
+
+- 学习一种符合 Go 惯例（idiomatic）的自定义中间件编写模式，并且能够兼容 `net/http` 以及众多第三方库。
+- 编写一个中间件，为每个 HTTP 响应统一设置常用的安全响应头（Security Headers）。
+- 编写一个中间件，记录应用程序接收到的每一次 HTTP 请求。
+- 编写一个中间件，用于捕获（recover）程序发生的 `panic`，使应用程序能够优雅地处理异常，而不会直接崩溃。
+- 学习如何创建和组合（compose）多个中间件，构建**中间件链（Middleware Chain）**，从而更好地管理和组织应用程序中的中间件。
+
+
+
 #### 6.1.中间件如何工作
 
-#### 6.2. 设置安全标头
+---
+
+在本书前面的章节中，我曾提到过一句话，这里我们将进一步展开说明：
+
+> **你可以把一个 Go Web 应用看作是一系列 `ServeHTTP()` 方法依次调用所组成的调用链。**
+
+在当前的应用程序中，当服务器接收到一个新的 HTTP 请求时，会首先调用 `ServeMux` 的 `ServeHTTP()` 方法。
+
+`ServeMux` 会根据请求的 URL 路径查找对应的处理器（Handler），然后再调用该处理器的 `ServeHTTP()` 方法来处理请求。
+
+**中间件（Middleware）的核心思想**，就是在这条调用链中插入一个额外的处理器（Handler）。
+
+这个中间件处理器会先执行一些额外的逻辑（例如记录请求日志、权限校验、统计请求耗时等），然后再调用调用链中下一个处理器的 `ServeHTTP()` 方法，将请求继续向下传递。
+
+实际上，我们的应用程序已经使用过一个中间件——用于提供静态文件服务的 `http.StripPrefix()`。
+
+`http.StripPrefix()` 会在请求到达文件服务器（File Server）之前，先移除请求 URL 中指定的前缀，然后再将处理后的请求继续传递给文件服务器进行处理。
+
+**模式**
+
+创建自定义中间件的标准写法（idiomatic pattern）如下：
+
+```go
+func myMiddleware(next http.Handler) http.Handler {
+    fn := func(w http.ResponseWriter, r *http.Request) {
+        // TODO: Execute our middleware logic here...
+        // 在这里执行中间件逻辑
+        next.ServeHTTP(w, r)
+    }
+    
+    return http.HandlerFunc(fn)
+}
+```
+
+这段代码本身非常简洁，但其中包含了一些需要仔细理解的概念。
+
+`myMiddleware()` 函数本质上是对“下一个处理器（next handler）”的一层封装（wrapper）。
+
+在函数内部，它定义了一个 `fn` 函数，这个函数通过**闭包（closure）**捕获了外部的 `next` 变量，从而形成一个闭包结构。
+
+当 `fn` 被执行时，它会先运行中间件自身的逻辑，然后再通过调用 `next` 的 `ServeHTTP()` 方法，将控制权交给下一个处理器。
+
+无论在什么情况下使用闭包，它都能够访问创建它时所在作用域中的变量。在这里意味着：`fn` 始终可以访问 `next` 变量。
+
+最后，我们使用 `http.HandlerFunc()` 适配器将这个函数闭包转换为 `http.Handler` 类型并返回。
+
+如果这些概念一时难以理解，可以更简单地理解为：
+
+> `myMiddleware` 是一个接受“下一个处理器”作为参数的函数，它返回一个新的处理器。这个新处理器会先执行自己的逻辑，然后再调用下一个处理器。
+
+##### 简化中间件
+
+对此模式的一种调整是使用匿名函数来重写 `myMiddleware` 中间件，如下所示：
+
+```go
+func myMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: Execute our middleware logic here...
+		next.ServeHTTP(w, r)
+	})
+}
+```
+
+这种模式在实际开发中非常常见，如果你阅读其他应用程序或第三方包的源代码，这很可能是你最常遇到的写法。
+
+##### 中间件的定位
+
+需要说明的是，中间件在处理器链中的放置位置会直接影响应用程序的行为。
+
+如果你把中间件放在 `servemux` 之前，它将对应用程序接收到的**每一个**请求都起作用。
+
+```
+myMiddleware → servemux → application handler
+```
+
+记录请求日志的中间件就是一个很好的例子——这通常是你希望对所有请求都做的事情。
+
+另一种做法是将中间件放在 `servemux` 之后——通过包裹一个特定的应用程序处理器来实现。这样，中间件只会在特定路由上执行。
+
+```
+servemux → myMiddleware → application handler
+```
+
+授权中间件就是一个典型的例子——你可能只希望在特定路由上运行它。
+
+随着本书的推进，我们会通过实例演示这两种做法的实际应用。
+
+
+
+#### 6.2. 设置安全响应头
+
+---
+
+让我们把上一章学到的模式付诸实践，创建我们自己的中间件——它会自动为每一个响应添加以下两个 HTTP 头：
+
+```
+X-Frame-Options: deny
+X-XSS-Protection: 1; mode=block
+```
+
+如果你不熟悉这两个头，它们的作用本质上是指示用户的网页浏览器实施一些额外的安全措施，以帮助防范 XSS（跨站脚本攻击）和点击劫持攻击。除非有特定理由不这样做，否则包含它们是一种良好的实践。
+
+我们先来创建一个 `middleware.go` 文件，本书后续编写的所有自定义中间件都将存放在这个文件中。
+
+```bash
+$ type nul > cmd/web/middleware.go
+```
+
+然后打开该文件，按照上一章介绍的模式添加一个 `secureHeaders()` 函数：
+
+```
+File: cmd/web/middleware.go
+```
+
+```go
+package main
+
+import "net/http"
+
+func secureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("X-Frame-Options", "deny")
+
+		next.ServeHTTP(w, r)
+	})
+}
+```
+
+因为我们希望这个中间件作用于接收到的每一个请求，所以需要在请求到达 `servemux` **之前**就执行它。我们希望应用程序的控制流看起来像这样：
+
+```
+secureHeaders → servemux → application handler
+```
+
+为此，我们需要让 `secureHeaders` 中间件函数包裹我们的 `servemux`。下面来修改 `routes.go` 文件，实现这一点：
+
+```go
+package main
+
+import "net/http"
+
+// 更新 routes() 方法的签名，使其返回一个 http.Handler
+// 而不是 *http.ServeMux。
+func (app *application) routes() http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", app.home)
+	mux.HandleFunc("/snippet", app.showSnippet)
+	mux.HandleFunc("/snippet/create", app.createSnippet)
+
+	fileServer := http.FileServer(http.Dir("./ui/static"))
+	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
+
+	// 将 servemux 作为 'next' 参数传递给 secureHeaders 中间件。
+	// 因为 secureHeaders 只是一个函数，并且该函数返回一个 http.Handler，
+	// 所以我们不需要再做其他任何事情。
+	return secureHeaders(mux)
+}
+```
+
+不妨试一下。运行应用程序，然后打开第二个终端窗口，用 `curl` 发送一些请求看看效果。你应该能看到这两个安全头现在出现在了每一个响应中。
+
+```bash
+$ curl -I http://localhost:4000/
+HTTP/1.1 200 OK
+X-Frame-Options: deny
+X-Xss-Protection: 1; mode=block
+Date: Tue, 30 Jun 2026 11:17:43 GMT
+Content-Length: 2016
+Content-Type: text/html; charset=utf-8
+```
+
+##### 附加信息
+
+**控制流**
+
+需要了解的一个重要知识点是：当链中最后一个处理器返回时，控制权会以**相反的方向**沿着链向上传递。因此，当我们的代码执行时，控制流实际上是这样的：
+
+```
+secureHeaders → servemux → application handler → servemux → secureHeaders
+```
+
+在任何中间件处理器中，位于 `next.ServeHTTP()` **之前**的代码会在沿链向下传递时执行，而位于 `next.ServeHTTP()` **之后**（或写在延迟函数 `defer` 中）的代码，则会在沿链向上返回时执行。
+
+```go
+func myMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 此处放置的代码会在沿链向下传递时执行。
+		next.ServeHTTP(w, r)
+		// 此处放置的代码会在沿链向上返回时执行。
+	})
+}
+```
+
+**提前返回**
+
+另外需要提到的一点是：如果你在调用 `next.ServeHTTP()` **之前**就从中间件函数中返回（`return`），那么链的执行将会停止，控制权会直接向上游返回。
+
+举例来说，提前返回的一个常见应用场景是认证中间件：只有当某个特定检查通过时，才允许链继续执行。例如：
+
+```go
+func myMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http,ResponseWriter, r *http.Request) {
+        // 如果用户未被授权，发送 403 Forbidden 状态码，
+		// 并直接返回以停止链的后续执行
+        if !isAuthorized(r) {
+            w.WriteHeader(http.StatusForbidden)
+            return
+        }
+        
+		// 否则，调用链中的下一个处理器
+        next.ServeHTTP(w, r)
+    })
+}
+```
+
+这种"提前返回"模式本书后续会用到——用于限制对应用程序某些部分的访问。
+
+
 
 #### 6.3. 请求记录
 
-#### 6.4. 紧急恢复
+---
+
+我们沿着同样的思路继续，添加一个用于记录 HTTP 请求日志的中间件。
+
+具体来说，我们将使用之前创建的 `infoLog` 日志记录器来记录用户的 IP 地址，以及被请求的 URL 和方法。
+
+打开 `middleware.go` 文件，使用标准中间件模式创建一个 `logRequest()` 方法，如下所示：
+
+```go
+File: cmd/web/middleware.go
+```
+
+```go
+func (app *application) logRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		app.infoLog.Printf("%s - %s %s %s", r.RemoteAddr, r.Proto, r.Method, r.URL.RequestURI())
+
+		next.ServeHTTP(w, r)
+	})
+}
+```
+
+需要注意的是，这次我们把中间件实现为 `application` 的一个方法。这样做也完全可行。这个中间件方法与之前的签名相同，但由于它是挂载在 `application` 上的方法，因此也可以访问处理器的各项依赖——包括那个 `infoLog` 信息日志记录器。
+
+现在来修改 `routes.go` 文件，让 `logRequest` 中间件首先执行，并且对所有请求生效，这样控制流（从左到右读）看起来如下：
+
+```
+logRequest ↔ secureHeaders ↔ servemux ↔ application handler
+```
+
+```
+File: cmd/web/routes.go
+```
+
+```go
+package main
+
+import "net/http"
+
+// 更新 routes() 方法的签名，使其返回一个 http.Handler
+// 而不是 *http.ServeMux。
+func (app *application) routes() http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", app.home)
+	mux.HandleFunc("/snippet", app.showSnippet)
+	mux.HandleFunc("/snippet/create", app.createSnippet)
+
+	fileServer := http.FileServer(http.Dir("./ui/static"))
+	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
+
+	// 将 servemux 作为 'next' 参数传递给 secureHeaders 中间件。
+	// 因为 secureHeaders 只是一个函数，并且该函数返回一个 http.Handler，
+	// 所以我们不需要再做其他任何事情。
+	return app.logRequest(secureHeaders(mux))
+}
+```
+
+好了……来试试看吧！
+
+重启你的应用程序，在浏览器中浏览几个页面，然后查看终端窗口。你应该会看到类似下面这样的日志输出：
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/30 19:32:35 Starting server on :4000
+INFO    2026/06/30 19:32:39 [::1]:53804 - HTTP/1.1 GET /
+INFO    2026/06/30 19:32:41 [::1]:53804 - HTTP/1.1 GET /
+INFO    2026/06/30 19:32:45 [::1]:53804 - HTTP/1.1 GET /
+INFO    2026/06/30 19:32:57 [::1]:53804 - HTTP/1.1 GET /snippet?id=2
+INFO    2026/06/30 19:33:25 [::1]:53804 - HTTP/1.1 GET /static/css/main.css
+INFO    2026/06/30 19:33:40 [::1]:53804 - HTTP/1.1 GET /static/img/favicon.ico
+```
+
+> [!NOTE]
+>
+> 取决于浏览器如何缓存静态文件，你可能需要硬刷新（或打开一个新的隐身 / 无痕浏览标签页）才能看到对静态文件的请求。
+
+
+
+#### 6.4. Panic 恢复
+
+---
+
+在一个简单的 Go 应用程序中，当代码发生 panic 时，应用程序会立刻终止。
+
+但我们的 Web 应用程序要更健壮一些。Go 的 HTTP 服务器假定任何 panic 的影响仅限于正在处理当前 HTTP 请求的那个 goroutine（记住，每个请求都在自己的 goroutine 中处理）。
+
+具体来说，发生 panic 后，服务器会在服务器错误日志中记录栈追踪信息，展开受影响的 goroutine 的调用栈（沿途调用所有 `defer` 延迟函数），并关闭底层的 HTTP 连接。但它**不会**终止整个应用程序——这一点很重要，也就是说，处理器（handler）中的 panic 不会把整个服务器搞垮。
+
+然而，如果某个处理器的确发生了 panic，用户会看到什么呢？
+
+我们来一探究竟——先在`home`页处理器中故意引入一个 panic。
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+...
+
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	
+	panic("oops! something went wrong")
+	
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.render(w, r, "home.page.tmpl", &templateData{
+		Snippets: s,
+	})
+}
+...
+```
+
+重启你的应用程序……
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/30 19:39:23 Starting server on :4000
+```
+
+然后从第二个终端窗口对首页发起一个 HTTP 请求：
+
+```bash
+$ curl -I http://localhost:4000/
+curl: (52) Empty reply from server
+```
+
+遗憾的是，我们得到的只是一个空响应——原因是 Go 在发生 panic 之后关闭了底层的 HTTP 连接。
+
+这对用户来说体验可不怎么好。更合适也更有意义的做法是，给用户返回一个正常的 HTTP 响应，并附上 `500 Internal Server Error` 状态码。
+
+一个简洁的做法是创建一个中间件来**恢复**（recover）panic，并调用我们的 `app.serverError()` 辅助方法。为此，我们可以利用这样一个特性：当 panic 发生后调用栈被展开时，`defer` 延迟函数总是会被调用。
+
+打开 `middleware.go` 文件，添加以下代码：
+
+```
+File: cmd/web/middleware.go
+```
+
+```go
+...
+
+func (app *application) recoverPanic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 创建一个延迟函数（在 Go 展开堆栈时，如果发生 panic，该函数总会执行）
+		defer func() {
+			// 使用内置的 recover 函数检查是否发生了 panic
+			if err := recover(); err != nil {
+				// 在响应中设置 "Connection: close" 头
+				w.Header().Set("Connection", "close")
+				// 调用 app.serverError 辅助方法返回 500 内部服务器错误
+				app.serverError(w, fmt.Errorf("%v", err))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+```
+
+这里有两点值得详细说明：
+
+- 在响应中设置 `Connection: Close` 头会触发 Go 的 HTTP 服务器在响应发送完毕后自动关闭当前连接，同时也告知用户该连接即将关闭。注意：如果使用的是 HTTP/2 协议，Go 会自动从响应中移除 `Connection: Close` 头（以避免格式错误），并发送一个 `GOAWAY` 帧。
+- 内建函数 `recover()` 返回值的类型是 `interface{}`，其底层类型可能是 `string`、`error`，或者其他任何类型——取决于传给 `panic()` 的参数是什么。在我们的例子中，它是字符串 `"oops! something went wrong"`。在上面的代码中，我们使用 `fmt.Errorf()` 将其统一转换为 `error` 类型——创建一个包含该 `interface{}` 值默认文本表示的新 error 对象，然后将这个 error 传递给 `app.serverError()` 辅助方法。
+
+现在，我们在 `routes.go` 文件中使用它，使其成为链中**第一个**被执行的中间件（这样它就能覆盖所有后续中间件和处理器中发生的 panic）。
+
+```
+File: cmd/web/routes.go
+```
+
+```go
+package main
+
+import "net/http"
+
+// 更新 routes() 方法的签名，使其返回一个 http.Handler
+// 而不是 *http.ServeMux。
+func (app *application) routes() http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", app.home)
+	mux.HandleFunc("/snippet", app.showSnippet)
+	mux.HandleFunc("/snippet/create", app.createSnippet)
+
+	fileServer := http.FileServer(http.Dir("./ui/static"))
+	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
+
+	// 将 servemux 作为 'next' 参数传递给 secureHeaders 中间件。
+	// 因为 secureHeaders 只是一个函数，并且该函数返回一个 http.Handler，
+	// 所以我们不需要再做其他任何事情。
+	return app.recoverPanic(app.logRequest(secureHeaders(mux)))
+}
+```
+
+现在重启应用程序，再次请求首页，你应该能看到一个格式正常的 `500 Internal Server Error` 响应，其中包括了我们之前提到的 `Connection: close` 头。
+
+```bash
+$ go run ./cmd/web
+INFO    2026/06/30 19:55:16 Starting server on :4000
+
+
+$ curl -I http://localhost:4000/
+HTTP/1.1 500 Internal Server Error
+Connection: close
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+X-Frame-Options: deny
+X-Xss-Protection: 1; mode=block
+Date: Tue, 30 Jun 2026 12:05:15 GMT
+Content-Length: 22
+```
+
+继续之前，先回到你的家页处理器代码中，把那行故意引入的 `panic` 删掉。
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+...
+
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.render(w, r, "home.page.tmpl", &templateData{
+		Snippets: s,
+	})
+}
+
+...
+```
+
+##### 附加信息
+
+**后台 Goroutine 中的 Panic 恢复**
+
+需要明确的一点是：我们的中间件**只能**恢复在与执行 `recoverPanic()` 中间件相同的 goroutine 中发生的 panic。
+
+举例来说，如果你的某个处理器又启动了一个新的 goroutine（比如做一些后台处理工作），那么在那个新 goroutine 中发生的任何 panic 都**不会被恢复**——`recoverPanic()` 中间件恢复不了，Go HTTP 服务器内建的 panic 恢复机制也管不着。这些 panic 会直接导致应用程序退出，整个服务器就此宕掉。
+
+因此，如果你在 Web 应用程序内部启动了额外的 goroutine，并且存在发生 panic 的可能，就必须确保在这些 goroutine 中也做好 panic 恢复。例如：
+
+```go
+func myHandler(w http.ResponseWriter, r *http.Request) {
+...
+	// 启动一个新的 goroutine 来执行一些后台处理
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Println(fmt.Errorf("%s\n%s", err, debug.Stack()))
+			}
+		}()
+        
+		doSomeBackgroundProcessing()
+	}()
+    
+	w.Write([]byte("OK"))
+}
+```
+
+
 
 #### 6.5. 可组合的中间件链
 
+在本章中，我们将介绍 `justinas/alice` 包，它可以帮助我们更方便地管理中间件与处理器（Handler）组成的调用链。
+
+当然，你**并不是必须使用**这个包。但我推荐它的原因在于：它能够让我们轻松创建**可组合（composable）**、**可复用（reusable）**的中间件链。随着应用程序不断发展、路由越来越复杂，这一点会带来很大的便利。
+
+此外，`justinas/alice` 本身也是一个**体积小、依赖少、实现简洁**的轻量级库，源码清晰，非常值得学习。
+
+为了演示它的作用，下面的示例展示了如何将原本需要这样编写的处理器调用链：
+
+```go
+return myMiddleware1(myMiddleware2(myMiddleware3(myHandler)))
+```
+
+改写为下面这种形式。
+
+这种写法更加简洁，也更容易一眼看清整个中间件调用链的结构：
+
+```go
+return alice.New(myMiddleware1, myMiddleware2, myMiddleware3).Then(myHand ler)
+```
+
+不过，`justinas/alice` 真正强大的地方在于：**它可以将中间件链作为一个对象进行组合和复用**。
+
+你可以将一条中间件链赋值给变量，在已有链的基础上继续追加新的中间件，并在多个路由之间重复使用。
+
+例如：
+
+```go
+myChain := alice.New(myMiddlewareOne, myMiddlewareTwo)
+myOtherChain := myChain.Append(myMiddleware3)
+return myOtherChain.Then(myHandler)
+```
+
+ 如果你正在跟着本书一起实践，请使用 `go get` 安装 `justinas/alice` 包。
+
+```bash
+$ go get github.com/justinas/alice@v1  
+go: downloading github.com/justinas/alice v1.2.0
+go: added github.com/justinas/alice v1.2.0
+```
+
+安装完成后，打开项目的 `go.mod` 文件，你应该会看到新增了一条对应的 `require` 语句，如下所示：
+
+```go
+...
+
+require (
+	filippo.io/edwards25519 v1.2.0 // indirect
+	github.com/go-sql-driver/mysql v1.10.0 // indirect
+	github.com/justinas/alice v1.2.0 // indirect
+)
+```
+
+接下来，让我们更新 `routes.go` 文件，使用 `justinas/alice` 来管理中间件链，具体如下：
+
+```go
+package main
+
+import (
+	"net/http"
+
+	"github.com/justinas/alice"
+)
+
+// 更新 routes() 方法的签名，使其返回一个 http.Handler
+// 而不是 *http.ServeMux。
+func (app *application) routes() http.Handler {
+	// 创建一个包含"标准"中间件的中间件链，该链将用于应用接收到的每个请求
+	standardMiddleware := alice.New(app.recoverPanic, app.logRequest, secureHeaders)
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", app.home)
+	mux.HandleFunc("/snippet", app.showSnippet)
+	mux.HandleFunc("/snippet/create", app.createSnippet)
+
+	fileServer := http.FileServer(http.Dir("./ui/static"))
+	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
+
+	// 返回"标准"中间件链后跟 servemux
+	return standardMiddleware.Then(mux)
+}
+```
+
+如果愿意的话，此时可以重新启动应用程序。
+
+你会发现，项目能够正常编译，并且应用程序的运行效果与之前完全一致。
+
+
+
 ### 7. 进阶路由
+
+---
+
+在下一节中，我们将为 Web 应用程序添加一个 HTML 表单，使用户能够创建新的代码片段（Snippet）。
+
+为了实现这一功能，我们需要根据 **HTTP 请求方法（Request Method）** 来分别处理 `/snippet/create` 路由。具体来说：
+
+- 对于 `GET /snippet/create` 请求，向用户展示用于创建代码片段的 HTML 表单。
+- 对于 `POST /snippet/create` 请求，处理用户提交的表单数据，并将新的代码片段插入数据库。
+
+与此同时，我们也可以顺便优化其他路由。
+
+对于那些**仅用于返回数据**的路由，我们将限制它们**只支持 `GET`（以及自动支持的 `HEAD`）请求**。
+
+最终，我们希望应用程序的路由结构大致如下所示：
+
+| Method | Pattern         | Handler           | Action                       |
+| ------ | --------------- | ----------------- | ---------------------------- |
+| GET    | /               | home              | Display the home page        |
+| GET    | /snippet?id=1   | showSnippet       | Display a specific snippet   |
+| GET    | /snippet/create | createSnippetForm | Display the new snippet form |
+| POST   | /snippet/create | createSnippet     | Create a new snippet         |
+| GET    | /static/        | http.FileServer   | Serve a specific static file |
+
+另一个与路由相关的优化是使用**语义化 URL（semantic URLs）**。
+
+也就是说，将所有的变量直接包含在 URL 路径中，而不是通过查询字符串（query string）来传递，例如：
+
+| Method | Pattern         | Handler           | Action                       |
+| ------ | --------------- | ----------------- | ---------------------------- |
+| GET    | /               | home              | Display the home page        |
+| GET    | /snippet/:id    | showSnippet       | Display a specific snippet   |
+| GET    | /snippet/create | createSnippetForm | Display the new snippet form |
+| POST   | /snippet/create | createSnippet     | Create a new snippet         |
+| GET    | /static/        | http.FileServer   | Serve a specific static file |
+
+如果做出这些改动，我们的应用路由结构将会更加符合 **REST 的基本设计原则**，并且对现代 Web 应用开发者来说会更加熟悉和直观。
+
+但是正如本书前面提到的，Go 自带的 `servemux` 并不支持**基于 HTTP 方法的路由（method-based routing）**，也不支持在 URL 中使用带变量的**语义化路径（semantic URLs with variables）**。
+
+虽然有一些“技巧”可以绕过这些限制，但大多数开发者最终会选择直接使用第三方路由库，因为这样更加简单、清晰。
+
+在本节中，我们将：
+
+- 简要介绍几个优秀的第三方路由库及其特点；
+- 将我们的应用改造为使用其中一个路由库，并调整为符合 REST 风格的路由结构。
+
+
 
 #### 7.1. 选择路由器
 
-#### 7.2. 干净的 URL 和基于方法的路由
+---
 
-### 8. 加工表格
+在 Go 语言中，有数百种第三方路由器可供选择。（从某种角度来看，这既是好事也是坏事。）它们的工作方式各不相同：有不同的 API 设计、不同的路由匹配逻辑，以及不同的行为细节。
+
+在我尝试过的所有第三方路由库中，有两个我比较推荐作为起点：**Pat** 和 **Gorilla Mux**。它们都有良好的文档、不错的测试覆盖率，并且能够很好地配合我们在本书中使用的标准 handler 和 middleware 模式。
+
+`bmizerany/pat` 是这两个库中更轻量、更专注的一个。它只提供基于 HTTP 方法的路由和语义化 URL 支持……仅此而已。但它在自己的职责范围内做得很好，API 设计优雅，代码也非常清晰易读。一个潜在缺点是：这个项目目前已经不再积极维护。
+
+`gorilla/mux` 则功能更为丰富。除了支持基于 HTTP 方法的路由和语义化 URL 之外，它还支持基于 scheme、host 和 headers 的路由。同时也支持在 URL 中使用正则表达式模式。不过它的缺点是相对较慢，并且内存占用较高——但对于像我们这种数据库驱动的 Web 应用来说，这种差异在整个 HTTP 请求生命周期中的影响通常很小。
+
+对于我们正在构建的 Web 应用来说，需求其实很简单，而 Gorilla Mux 提供的高级功能并不是必须的。因此，在这两个库中，我们选择 **Pat**。
+
+在写这本书时，`bmizerany/pat` 并没有提供语义化版本发布（semantic versioned releases）。因此，如果你正在跟着实践，可以直接安装最新版本如下：
+
+```bash
+$ go get github.com/bmizerany/pat    
+go: downloading github.com/bmizerany/pat v0.0.0-20210406213842-e4b6760bdd6f
+go: added github.com/bmizerany/pat v0.0.0-20210406213842-e4b6760bdd6f
+```
+
+我上面推荐的两个路由库只是作为入门选择，如果你想进一步探索其他替代方案，还可以考虑下面这些选项——它们各自都有不错的设计，可以看看是否符合你和具体项目的需求。
+
+- `go-zoo/bone` 提供了与 `Pat` 类似的功能，但额外增加了一些便利方法，用于注册 handler 函数，并且支持基于正则表达式的路由。不过它的一个缺点是——在撰写本书时——该库的测试覆盖率仍然不够完整。
+
+- `julienschmidt/httprouter` 是一个非常有名的、基于 radix tree（基数树）的高性能路由器，支持基于 HTTP 方法的路由以及语义化 URL。不过它无法很好地处理由通配符参数引起的路由冲突，这对使用 REST 风格路由的应用来说可能会是一个问题（例如 `/snippet/create` 和 `/snippet/:id` 这种路径会产生冲突）。如果你不遇到这个问题，那么它仍然是一个非常不错的选择。
+
+> [!TIP]
+>
+> 注意：如果你使用的是 `julienschmidt/httprouter`，它的 `Router.Handler()` 和 `Router.HandlerFunc()` 方法是兼容 Go 标准的 middleware 和 handler 模式的。
+
+- `dimfeld/httptreemux` 是另一个基于 radix tree（基数树）的路由器，但它的设计目标是避免 `julienschmidt/httprouter` 所存在的“路由模式冲突”问题。不过它的一个缺点是：它只允许注册 `http.HandlerFunc`，而不能注册 `http.Handler`，这意味着它与我们前面介绍的标准中间件模式配合不够理想，尤其是在需要针对特定路由使用中间件时。
+
+- `go-chi/chi` 是另一个非常流行的选择，它同样使用 radix tree 进行路由匹配，并且提供了一个非常灵活、易用的 API。值得一提的是，它还包含一个 `go-chi/chi/middleware` 子包，里面提供了一系列实用的中间件。
+
+
+
+#### 7.2 实现 RESTful 路由
+
+----
+
+
+
+使用 `bmizerany/pat` 包创建路由器并注册路由的基本语法如下：
+
+```go
+mux := pat.New()
+mux.Get("/snippet/:id", http.HandlerFunc(app.showSnippet))
+```
+
+在这段代码中：
+
+- `/snippet/:id` 这个模式中包含一个命名捕获（named capture）`:id`。这个命名捕获的作用类似于通配符，而路径中其余部分则必须完全匹配。Pat 会在运行时将这个命名捕获的值自动提取出来，并以查询字符串参数的形式附加到 URL 中（在底层完成）。
+- `mux.Get()` 方法用于注册一个 URL 路由和对应的处理器（handler），并且该处理器**仅在 HTTP 请求方法为 GET 时才会被调用**。类似地，`Post()`、`Put()`、`Delete()` 等方法也都提供了对应的实现。
+- 由于 Pat 不允许直接注册 `handler function`，因此需要使用 `http.HandlerFunc()` 适配器将其转换为 `http.Handler`。
+
+
+理解了这些之后，我们就可以进入 `routes.go` 文件，并将其更新为使用 Pat：
+
+```
+File: cmd/web/routes.go
+```
+
+```go
+package main
+
+import (
+	"net/http"
+
+	"github.com/bmizerany/pat"
+	"github.com/justinas/alice"
+)
+
+// 更新 routes() 方法的签名，使其返回一个 http.Handler
+// 而不是 *http.ServeMux。
+func (app *application) routes() http.Handler {
+	// 创建一个包含"标准"中间件的中间件链，该链将用于应用接收到的每个请求
+	standardMiddleware := alice.New(app.recoverPanic, app.logRequest, secureHeaders)
+
+	mux := pat.New()
+
+	mux.Get("/", http.HandlerFunc(app.home))
+	mux.Get("/snippet/create", http.HandlerFunc(app.createSnippetForm))
+	mux.Post("/snippet/create", http.HandlerFunc(app.createSnippet))
+	mux.Get("/snippet/:id", http.HandlerFunc(app.showSnippet))
+
+	fileServer := http.FileServer(http.Dir("./ui/static"))
+	mux.Get("/static/", http.StripPrefix("/static", fileServer))
+
+	// 返回"标准"中间件链后跟 servemux
+	return standardMiddleware.Then(mux)
+}
+```
+
+这里有几点非常重要需要说明：
+
+Pat 会按照**注册顺序**来匹配路由模式。
+
+在我们的应用中，一个 `GET "/snippet/create"` 请求实际上会同时匹配两个路由：
+
+- `/snippet/create`（完全匹配）
+- `/snippet/:id`（通配符匹配，其中 `"create"` 会被当作 `:id` 参数）
+
+因此，为了确保“精确匹配优先”，我们必须把**精确匹配的路由注册在前面**，然后再注册带通配符的路由。
+
+---
+
+以斜杠结尾的 URL 模式（例如 `"/static/"`）与 Go 内置的 `servemux` 行为一致。任何以该前缀开头的请求都会被分发到对应的处理器。
+
+---
+
+另外，`"/"` 是一个特殊情况。它只会匹配 URL 路径**完全等于 `/` 的请求**。
+
+---
+
+理解了这些之后，我们还需要对 `handlers.go` 文件做一些相应的修改。
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+package main
+
+import (
+	"errors"
+	"fmt"
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+
+	"github.com/maxfeizi04-cloude/snippetbox/pkg/models"
+	"github.com/maxfeizi04-cloude/snippetbox/pkg/models/mysql"
+)
+
+// 在 application 结构体中添加 snippets 字段
+// 这将使 SnippetModel 对象在 handlers 中可用
+type application struct {
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	snippets      *mysql.SnippetModel
+	templateCache map[string]*template.Template
+}
+
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	// 因为 Pat 会精确匹配 "/" 路径，所以我们现在可以移除该 handler 中
+	// 对 r.URL.Path != "/" 的手动检查
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.render(w, r, "home.page.tmpl", &templateData{
+		Snippets: s,
+	})
+}
+
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+	// Pat 不会自动去掉命名捕获参数中的冒号，因此我们需要从查询字符串中获取
+	// ":id" 的值，而不是 "id"
+	id, err := strconv.Atoi(r.URL.Query().Get(":id"))
+	if err != nil || id < 1 {
+		app.notFound(w)
+		return
+	}
+
+	// 使用 SnippetModel 对象的 Get 方法，根据 ID 检索特定记录的数据。
+	// 如果未找到匹配记录，则返回 404 Not Found 响应
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	app.render(w, r, "show.page.tmpl", &templateData{
+		Snippet: s,
+	})
+
+}
+
+// 添加一个新的 createSnippetForm 处理器，目前先返回一个占位响应
+func (app *application) createSnippetForm(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Create a new snippet ..."))
+}
+
+func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
+	// 现在已经不再需要检查请求方法是否为 POST，这部分逻辑可以移除
+
+	// 创建一些存有测试数据的变量。稍后构建时会移除这些数据
+	title := "0 snail"
+	content := "0 snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n-Kobayashi Issa"
+	expires := "7"
+
+	// 将数据传给 SnippetModel.Insert() 方法，并接收新记录的 ID
+	id, err := app.snippets.Insert(title, content, expires)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// 将用户重定向到该 snippet 对应的页面
+	// 将重定向地址改为新的语义化 URL 风格：/snippet/:id
+	http.Redirect(w, r, fmt.Sprintf("/snippet/%d", id), http.StatusSeeOther)
+}
+```
+
+最后，我们需要更新 `home.page.tmpl` 文件中的表格，使 HTML 中的链接也使用新的语义化 URL 风格 `/snippet/:id`。
+
+```
+File: home.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Home{{end}}
+
+{{define "main"}}
+    <h2>Latest Snippet</h2>
+    {{if .Snippets}}
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Create</th>
+            <th>ID</th>
+        </tr>
+        {{range .Snippets}}
+        <tr>
+            <!-- Use the new semantic URL style-->
+            <td><a href='/snippet/{{.ID}}'>{{.Title}}</a> </td>
+            <td>{{humanDate .Created}}</td>
+            <td>#{{.ID}}</td>
+        </tr>
+        {{end}}
+    </table>
+    {{else}}
+        <p>There's nothing to see here yet!</p>
+    {{end}}
+{{end}}
+```
+
+完成以上修改后，重新启动应用程序，你现在应该可以通过语义化 URL 来查看文本片段。例如：
+
+http://localhost:4000/snippet/1
+
+![image-20260701165154854](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260701165154854.png)
+
+你还可以看到，当使用不被支持的 HTTP 方法发起请求时，服务器会返回 **405 Method Not Allowed（方法不被允许）** 响应。
+
+例如，可以使用 `curl` 对同一个 URL 发送一个 POST 请求进行测试：
+
+```bash
+$ curl -I -X POST http://localhost:4000/snippet/1
+HTTP/1.1 405 Method Not Allowed
+Allow: HEAD, GET
+Content-Type: text/plain; charset=utf-8
+X-Content-Type-Options: nosniff
+X-Frame-Options: deny
+X-Xss-Protection: 1; mode=block
+Date: Wed, 01 Jul 2026 08:53:00 GMT
+Content-Length: 19
+```
+
+
+
+### 8. 处理表单 
+
+---
+
+在本节中，我们将重点实现一个功能：允许用户通过 **HTML 表单** 创建新的代码片段（Snippet）。
+
+最终，这个表单页面的效果大致如下所示：
+
+![image-20260701194108033](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260701194108033.png)
+
+处理这个表单时，我们将采用一种标准的 **Post-Redirect-Get（PRG）** 模式，其整体流程如下：
+
+1. 当用户向 `/snippet/create` 发送 **GET** 请求时，服务器返回一个空白的 HTML 表单。
+2. 用户填写表单后，通过 **POST** 请求将数据提交到 `/snippet/create`。
+3. `createSnippet` 处理器负责对提交的表单数据进行验证。
+   - 如果验证失败，则重新显示表单，并高亮显示存在问题的字段。
+   - 如果验证通过，则将新的代码片段保存到数据库中，然后将用户重定向到 `/snippet/:id` 页面。
+
+在这一过程中，你将学习以下内容：
+
+- 如何解析并获取 **POST 请求** 中提交的表单数据。
+- 如何对表单数据执行一些常见的验证（Validation）。
+- 如何以更加友好的方式向用户提示验证错误，并在重新显示表单时保留用户之前输入的数据。
+- 如何通过创建一个独立、可复用的表单辅助（form helper）包，对验证逻辑进行封装，从而保持处理器（Handler）代码简洁、易于维护。
+
+
 
 #### 8.1. 设置 HTML 表单
 
+---
+
+首先，创建一个新的 `ui/html/create.page.tmpl` 文件，用于存放该表单页面的 HTML 模板。
+
+```bash
+type nul > ui/html/create.page.tmpl
+```
+
+然后，按照本书前面章节所采用的相同模式，在该文件中添加如下模板代码：
+
+```
+File: ui/html/create.page.tmpl
+```
+
+```html
+{{template "base" .}}
+
+{{define "title"}}Create a New Snippet{{end}}
+
+{{define "main"}}
+<form action='/snippet/create' method="POST">
+    <div>
+        <label>Title:</label>
+        <input type="text" name="title">
+    </div>
+    <div>
+        <label>Content:</label>
+        <textarea name="content"></textarea>
+    </div>
+    <div>
+        <label>Delete in:</label>
+        <input type="radio" name="expires" value="365" checked> One Year
+        <input type="radio" name="expires" value="7"> One Week
+        <input type="radio" name="expires" value="1"> One Day
+    </div>
+    <div>
+        <input type="submit" value="Publish snippet">
+    </div>
+</form>
+{{end}}
+```
+
+到目前为止，这里并没有什么特别复杂的地方。
+
+我们的主模板中包含了一个标准的 Web 表单，它会提交三个表单字段：
+
+- `title`：标题
+- `content`：内容
+- `expires`：过期时间（代码片段将在多少天后过期）
+
+这里唯一值得特别说明的是表单的 `action` 和 `method` 属性。
+
+我们已经将它们设置为：当用户提交表单时，浏览器会通过 **POST** 请求将表单数据发送到 `/snippet/create`。
+
+接下来，我们将在应用程序的导航栏中新增一个 **Create snippet** 链接，使用户点击后能够进入这个新的表单页面。
+
+```
+File: ui/html/base.layout.tmpl
+```
+
+```html
+{{define "base"}}
+<!doctype html>
+<html lang='en'>
+    <head>
+        <meta charset='utf-8'>
+        <title>{{template "title" .}} - Snippetbox</title>
+        <link rel='stylesheet' href='/static/css/main.css'>
+        <link rel="shortcut icon" href='/static/img/favicon.ico' type="image/x-icon">
+        <link rel="stylesheet" href='https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700'>
+    </head>
+    <body>
+        <header>
+            <h1><a href='/'>Snippetbox</a> </h1>
+        </header>
+        <nav>
+            <a href='/'>Home</a>
+            <!-- 添加新表格的链接 -->
+            <a href="/snippet/create">Create snippet</a>
+        </nav>
+        <main>
+            {{template "main" .}}
+        </main>
+        <!-- Invoke the footer template -->
+        {{template "footer" .}}
+        <script src="/static/js/main.js" type="text/javascript"></script>
+    </body>
+</html>
+{{end}}
+```
+
+最后，我们需要更新 `createSnippetForm` 处理器，使其能够渲染我们刚刚创建的新页面，具体如下：
+
+```
+File: cmd/web/handlers.g
+```
+
+```go
+func (app *application) createSnippetForm(w http.ResponseWriter, r *http.Request) {
+	app.render(w, r, "create.page.tmpl", nil)
+}
+```
+
+此时，你可以启动应用程序，并在浏览器中访问：
+
+`http://localhost:4000/snippet/create`
+
+你应该会看到一个如下所示的表单页面：
+
+![image-20260701195908550](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260701195908550.png)
+
+
+
 #### 8.2.  解析表单数据
+
+---
+
+得益于我们之前在 **RESTful 路由** 一节中所做的改造，所有发送到 `POST /snippet/create` 的请求都会自动分发到 `createSnippet` 处理器。
+
+现在，我们将更新这个处理器，使其能够在表单提交后处理并使用表单数据。
+
+从整体来看，这个过程可以分为两个步骤。
+
+1. 首先，调用 `r.ParseForm()` 方法解析请求体（request body）。
+
+   该方法会检查请求体的格式是否正确，然后将解析出的表单数据保存到请求对象的 `r.PostForm` 映射（map）中。
+
+   如果在解析过程中发生错误（例如请求没有请求体，或者请求体过大而无法处理），该方法会返回一个错误。
+
+   此外，`r.ParseForm()` 是**幂等（idempotent）**的，这意味着可以在同一个请求上安全地多次调用，而不会产生任何副作用。
+
+2. 接着，通过 `r.PostForm.Get()` 方法获取表单中的数据。
+
+   例如，可以使用 `r.PostForm.Get("title")` 获取 `title` 字段的值。
+
+   如果表单中不存在对应名称的字段，该方法会返回空字符串 `""`，这一行为与本书前面介绍的查询字符串参数（query string parameters）一致。
+
+现在，请打开 `cmd/web/handlers.go` 文件，并添加如下代码：
+
+```
+File: cmd/web/handlers.go
+```
+
+```go
+...
+
+func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
+	// 首先我们调用 r.ParseForm()，它会将 POST 请求体中的数据添加到
+	// r.PostForm 映射中。对于 PUT 和 PATCH 请求，它的工作方式也是相同的
+	// 如果出现任何错误，我们使用 app.clientError 辅助函数向用户发送
+	// 400 Bad Request 响应
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+	// 使用 r.PostForm.Get() 方法从 r.PostForm 映射中提取相关的数据字段
+	title := r.PostForm.Get("title")
+	content := r.PostForm.Get("content")
+	expires := r.PostForm.Get("expires")
+	
+	// 将数据传给 SnippetModel.Insert() 方法，并接收新记录的 ID
+	id, err := app.snippets.Insert(title, content, expires)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// 将客户端重定向到新创建的 snippet 详情页面
+	// 使用 http.StatusSeeOther (303) 状态码,这是 POST 请求后重定向的标准做法
+	// 可以防止用户刷新页面时重复提交表单
+	http.Redirect(w, r, fmt.Sprintf("/snippet/%d", id), http.StatusSeeOther)
+}
+```
+
+好了，现在来试试看吧！
+
+重新启动应用程序，并尝试填写表单，为代码片段输入一个标题（title）和内容（content），例如下面这样：
+
+![image-20260701201731399](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260701201731399.png)
+
+然后提交表单。
+
+如果一切正常，你应该会被重定向到一个页面，并看到刚刚创建的新代码片段，效果如下所示：
+
+![image-20260701201717933](C:\Users\Yang\AppData\Roaming\Typora\typora-user-images\image-20260701201717933.png)
+
+##### 附加信息
+
+**The r.Form map**
+
+在我们上面的代码中，是通过 `r.PostForm` map 来获取表单值的。不过还有另一种（细微不同的）方式：使用 `r.Form` map。
+
+`r.PostForm` 只会在 **POST、PATCH 和 PUT 请求**中被填充，并且仅包含请求体中的表单数据。
+
+相比之下，`r.Form` 会在**所有请求方法**中都被填充（无论 HTTP 方法是什么），并且它包含两部分数据：
+
+- 请求体中的表单数据（request body）
+- URL 查询字符串参数（query string parameters）
+
+例如，如果表单提交到 `/snippet/create?foo=bar`，那么我们也可以通过 `r.Form.Get("foo")` 获取到 `foo` 的值。
+
+需要注意的是，如果同一个参数在请求体和查询字符串中都存在，那么**请求体中的值会优先覆盖查询字符串中的值**。
+
+---
+
+在某些情况下，使用 `r.Form` 会很方便，比如：
+
+- 应用既通过 HTML 表单提交数据，也通过 URL 传递参数
+- 或者应用对参数来源不关心（无论来自 body 还是 query string）
+
+但在我们的场景中，这些情况并不适用。我们的表单数据明确只会通过请求体提交，因此使用 `r.PostForm` 是更清晰、也更合适的做法。
+
+**FormValue 和 PostFormValue 方法**
+
+`net/http` 包还提供了 `r.FormValue()` 和 `r.PostFormValue()` 这两个方法。
+
+它们本质上是一些快捷函数：会自动帮你调用 `r.ParseForm()`，然后分别从 `r.Form` 或 `r.PostForm` 中获取对应字段的值。
+
+不过我建议不要使用这些快捷方法，因为它们会**静默忽略 `r.ParseForm()` 返回的错误**。
+
+这并不理想——这意味着我们的应用可能已经发生了错误并导致用户请求失败，但却没有任何反馈机制让我们察觉或处理这些问题。
+
+**Multiple-Value Fields**
+
+严格来说，我们上面使用的 `r.PostForm.Get()` 方法只会返回某个表单字段的**第一个值**。
+
+这意味着它不能用于可能会发送多个值的表单字段，例如一组复选框（checkboxes）。
+
+```html
+<input type="checkbox" name="items" value="foo"> Foo
+<input type="checkbox" name="items" value="bar"> Bar
+<input type="checkbox" name="items" value="baz"> Baz
+```
+
+在这种情况下，你需要直接使用 `r.PostForm` map。
+
+`r.PostForm` 的底层类型是 `url.Values`，而 `url.Values` 本质上又是：
+
+`map[string][]string`
+
+因此，对于可能包含多个值的字段，你可以通过遍历底层的 slice 来访问它们，例如：
+
+```go
+for i, item := range r.PostForm["items"] {
+fmt.Fprintf(w, "%d: Item %s\n", i, item)
+}
+```
+
+**Form Size**
+
+除非你发送的是 multipart 数据（也就是表单设置了 `enctype="multipart/form-data"`），否则 POST、PUT 和 PATCH 请求的请求体默认最大限制为 **10MB**。
+
+如果请求体超过这个限制，`r.ParseForm()` 会返回一个错误。
+
+如果你想修改这个限制，可以使用 `http.MaxBytesReader()` 函数，例如：
+
+```go
+// 将请求体大小限制为 4096 字节
+r.Body = http.MaxBytesReader(w, r.Body, 4096)
+err := r.ParseForm()
+if err != nil {
+	http.Error(w, "Bad Request", http.StatusBadRequest)
+	return
+}
+```
+
+在这段代码中，`r.ParseForm()` 在解析请求体时**最多只会读取前 4096 字节的数据**。
+
+如果尝试读取超过这个限制的数据，`MaxBytesReader` 将返回一个错误，而该错误最终会通过 `r.ParseForm()` 体现出来。
+
+此外——如果达到了这个限制——`MaxBytesReader` 还会在 `http.ResponseWriter` 上设置一个标志，指示服务器**关闭底层的 TCP 连接**。
+
+
 
 #### 8.3. 验证表单数据
 

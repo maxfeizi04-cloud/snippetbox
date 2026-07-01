@@ -22,10 +22,8 @@ type application struct {
 }
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
+	// 因为 Pat 会精确匹配 "/" 路径，所以我们现在可以移除该 handler 中
+	// 对 r.URL.Path != "/" 的手动检查
 
 	s, err := app.snippets.Latest()
 	if err != nil {
@@ -39,7 +37,9 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	// Pat 不会自动去掉命名捕获参数中的冒号，因此我们需要从查询字符串中获取
+	// ":id" 的值，而不是 "id"
+	id, err := strconv.Atoi(r.URL.Query().Get(":id"))
 	if err != nil || id < 1 {
 		app.notFound(w)
 		return
@@ -63,17 +63,24 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (app *application) createSnippetForm(w http.ResponseWriter, r *http.Request) {
+	app.render(w, r, "create.page.tmpl", nil)
+}
+
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		app.clientError(w, http.StatusMethodNotAllowed)
+	// 首先我们调用 r.ParseForm()，它会将 POST 请求体中的数据添加到
+	// r.PostForm 映射中。对于 PUT 和 PATCH 请求，它的工作方式也是相同的
+	// 如果出现任何错误，我们使用 app.clientError 辅助函数向用户发送
+	// 400 Bad Request 响应
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
 		return
 	}
-
-	// 创建一些存有测试数据的变量。稍后构建时会移除这些数据
-	title := "0 snail"
-	content := "0 snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n-Kobayashi Issa"
-	expires := "7"
+	// 使用 r.PostForm.Get() 方法从 r.PostForm 映射中提取相关的数据字段
+	title := r.PostForm.Get("title")
+	content := r.PostForm.Get("content")
+	expires := r.PostForm.Get("expires")
 
 	// 将数据传给 SnippetModel.Insert() 方法，并接收新记录的 ID
 	id, err := app.snippets.Insert(title, content, expires)
@@ -82,6 +89,8 @@ func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 将用户重定向到该 snippet 对应的页面
-	http.Redirect(w, r, fmt.Sprintf("/snippet?id=%d", id), http.StatusSeeOther)
+	// 将客户端重定向到新创建的 snippet 详情页面
+	// 使用 http.StatusSeeOther (303) 状态码,这是 POST 请求后重定向的标准做法
+	// 可以防止用户刷新页面时重复提交表单
+	http.Redirect(w, r, fmt.Sprintf("/snippet/%d", id), http.StatusSeeOther)
 }
